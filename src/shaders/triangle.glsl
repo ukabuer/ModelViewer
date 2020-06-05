@@ -1,17 +1,17 @@
 #pragma sokol @vs vs
+layout(location = 0) in vec3 position;
+layout(location = 1) in vec3 normal;
+layout(location = 2) in vec3 uv;
+
 uniform vs_params {
   mat4 model;
   mat4 camera;
 };
 
-layout(location = 0) in vec3 position;
-layout(location = 1) in vec3 normal;
-layout(location = 2) in vec3 uv;
-
 void main() {
   gl_Position = camera * model * vec4(position, 1.0f);
 }
-#pragma sokol @end
+  #pragma sokol @end
 
 #pragma sokol @fs fs
 out vec4 frag_color;

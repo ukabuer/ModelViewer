@@ -1,38 +1,9 @@
 #include "utils.hpp"
 #include <cfloat>
-#include <climits>
-#include <iostream>
 #include <stdexcept>
 #include <string>
 
 using namespace std;
-
-auto load_gltf_model(const char *filename) -> tinygltf::Model {
-  std::string path = filename;
-  auto ext_idx = path.find_last_of('.');
-  if (ext_idx == std::string::npos) {
-    throw runtime_error("should have extension");
-  }
-  auto ext = path.substr(ext_idx);
-  if (ext != ".glb" && ext != ".gltf") {
-    throw runtime_error("Only support GLTF/GLB format.");
-  }
-  tinygltf::TinyGLTF gltf_loader;
-  tinygltf::Model gltf_model;
-  string err, warn;
-  bool res = false;
-  if (ext == ".glb") {
-    res = gltf_loader.LoadBinaryFromFile(&gltf_model, &err, &warn, path);
-  } else {
-    res = gltf_loader.LoadASCIIFromFile(&gltf_model, &err, &warn, path);
-  }
-  if (!res) {
-    throw runtime_error("Failed to load model" + err);
-  }
-  if (!warn.empty()) {
-    cout << "Loading model warning: " << warn << endl;
-  }
-}
 
 auto get_gltf_scene_bound(const tinygltf::Model &gltf_model, int32_t scene_idx)
     -> Eigen::AlignedBox3f {
@@ -71,7 +42,7 @@ auto get_gltf_scene_bound(const tinygltf::Model &gltf_model, int32_t scene_idx)
       }
 
       auto accessor = gltf_model.accessors[accessor_idx];
-      Eigen::Matrix4f transform;
+      Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
       for (size_t i = 0; i < gltf_node.matrix.size(); i++) {
         transform.data()[i] = gltf_node.matrix[i];
       }

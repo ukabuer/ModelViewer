@@ -2,23 +2,26 @@
 #define SOKOL_IMPL
 #define SOKOL_GLCORE33
 #include "Camera.hpp"
-#include <glad/glad.h>
-#include "Scene.hpp"
 #include "TrackballController.hpp"
 #include "utils.hpp"
 #include <GLFW/glfw3.h>
-// clang-format off
-#include "shaders/triangle.glsl.c"
-// clang-format on
+#include <glad/glad.h>
 #include <iostream>
-
 #include <string>
+// clang-format off
+#include "Model.hpp"
+// clang-format on
 
 using namespace std;
 
 void setup_event_callback(GLFWwindow *window, TrackballController &controller);
 
-int main() {
+struct VSShaderUniform {
+  Eigen::Matrix4f model;
+  Eigen::Matrix4f camera;
+};
+
+int main(int argc, const char *argv[]) {
   constexpr int32_t width = 640;
   constexpr int32_t height = 480;
 
@@ -28,7 +31,7 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   auto window =
-      glfwCreateWindow(width, height, "Sokol Triangle GLFW", nullptr, nullptr);
+      glfwCreateWindow(width, height, "GLTF Viewer", nullptr, nullptr);
   glfwMakeContextCurrent(window);
   glfwSwapInterval(1);
 
@@ -42,9 +45,10 @@ int main() {
   sg_setup(&app_desc);
 
   // load scene
-  auto model = Scene::Load("/home/ukabuer/Downloads/models/Box.gltf");
-  auto bound = get_gltf_scene_bound(model.model, model.model.defaultScene);
-  auto scene = model.model.scenes[model.model.defaultScene];
+  auto model = Model::Load(argv[1]);
+  auto scene = model.gltf.scenes[model.gltf.defaultScene];
+  auto bound = get_gltf_scene_bound(model.gltf, model.gltf.defaultScene);
+  auto radius = (bound.max() - bound.min()).norm() / 2.0f;
 
   // setup camera
   Camera camera{};
@@ -55,70 +59,55 @@ int main() {
   TrackballController controller{640, 480};
   controller.target = (bound.min() + bound.max()) / 2.0f;
   controller.position = controller.target;
-  auto radius = (bound.max() - bound.min()).norm();
-  controller.position[2] += 5.0f;
+  controller.position[2] += radius;
   setup_event_callback(window, controller);
-
-  auto shader_desc = triangle_shader_desc();
-  auto shader = sg_make_shader(shader_desc);
 
   sg_pass_action pass_action{};
   sg_bindings binds = {};
-
-  sg_pipeline_desc pip_desc{};
-  pip_desc.shader = shader;
-  pip_desc.index_type =SG_INDEXTYPE_UINT16;
-  pip_desc.layout.attrs[0].buffer_index = 0;
-  pip_desc.layout.attrs[0].format = SG_VERTEXFORMAT_FLOAT3;
-  auto pipeline = sg_make_pipeline(&pip_desc);
+  VSShaderUniform vs_params{};
   while (!glfwWindowShouldClose(window)) {
     controller.update();
     camera.lookAt(controller.position, controller.target, controller.up);
 
     const Eigen::Matrix4f viewMatrix = camera.getViewMatrix().inverse();
     auto &projectionMatrix = camera.getCullingProjectionMatrix();
-    Eigen::Matrix4f view_matrix = projectionMatrix * viewMatrix;
+    vs_params.camera = projectionMatrix * viewMatrix;
 
     sg_begin_default_pass(&pass_action, width, height);
-    sg_apply_pipeline(pipeline);
+    auto gltf_nodes = scene.nodes;
+    while (!gltf_nodes.empty()) {
+      auto node_idx = gltf_nodes.back();
+      gltf_nodes.pop_back();
 
-    auto nodes = scene.nodes;
-    while (!nodes.empty()) {
-      auto node_idx = nodes.back();
-      nodes.pop_back();
-      auto &node = model.model.nodes[node_idx];
-      if (!node.children.empty()) {
-        nodes.insert(nodes.end(), node.children.begin(), node.children.end());
+      auto &gltf_node = model.gltf.nodes[node_idx];
+      if (!gltf_node.children.empty()) {
+        gltf_nodes.insert(gltf_nodes.end(), gltf_node.children.begin(),
+                          gltf_node.children.end());
       }
 
-      if (node.mesh < 0) {
-        continue;
-      }
-
-      auto &mesh = model.model.meshes[node.mesh];
-      for (auto &primitive : mesh.primitives) {
-        auto num = 0;
-        if (primitive.indices >= 0) {
-          auto &accessor = model.model.accessors[primitive.indices];
-          binds.index_buffer = model.buffers[accessor.bufferView];
-          num = accessor.count;
+      auto &gltf_mesh = model.gltf.meshes[gltf_node.mesh];
+      for (uint32_t idx = 0; idx < gltf_mesh.primitives.size(); idx++) {
+        string id = to_string(gltf_node.mesh) + "-" + to_string(idx);
+        auto mesh_pos = model.meshes.find(id);
+        if (mesh_pos == model.meshes.end()) {
+          continue;
         }
-        auto position_pos = primitive.attributes.find("POSITION");
-        auto &accessor = model.model.accessors[position_pos->second];
 
-        binds.vertex_buffers[0] = model.buffers[accessor.bufferView];
+        auto &mesh = mesh_pos->second;
+        binds.index_buffer = mesh.geometry.indices;
+        binds.vertex_buffers[0] = mesh.geometry.vertices;
 
+        sg_apply_pipeline(mesh.pipeline);
         sg_apply_bindings(&binds);
-        Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
-        for (int i = 0; i < node.matrix.size(); i++) {
-          transform.data()[i] = node.matrix[i];
+        vs_params.model = Eigen::Matrix4f::Identity();
+        for (int i = 0; i < gltf_node.matrix.size(); i++) {
+          vs_params.model.data()[i] = gltf_node.matrix[i];
         }
 
-        std::array<Eigen::Matrix4f, 2> vs_params = {transform, view_matrix};
-
-        sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, vs_params.data(), sizeof(Eigen::Matrix4f) * 2);
-
-        sg_draw(0, num, 1);
+        sg_apply_uniforms(SG_SHADERSTAGE_VS, 0,
+                          reinterpret_cast<void *>(&vs_params),
+                          sizeof(Eigen::Matrix4f) * 2);
+        sg_draw(0, mesh.geometry.num, 1);
       }
     }
     sg_end_pass();
