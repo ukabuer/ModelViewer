@@ -10,16 +10,12 @@
 #include <string>
 // clang-format off
 #include "Model.hpp"
+#include "shaders/render.glsl.h"
 // clang-format on
 
 using namespace std;
 
 void setup_event_callback(GLFWwindow *window, TrackballController &controller);
-
-struct VSShaderUniform {
-  Eigen::Matrix4f model;
-  Eigen::Matrix4f camera;
-};
 
 int main(int argc, const char *argv[]) {
   constexpr int32_t width = 640;
@@ -48,7 +44,7 @@ int main(int argc, const char *argv[]) {
   auto model = Model::Load(argv[1]);
   auto scene = model.gltf.scenes[model.gltf.defaultScene];
   auto bound = get_gltf_scene_bound(model.gltf, model.gltf.defaultScene);
-  auto radius = (bound.max() - bound.min()).norm() / 2.0f;
+  auto radius = abs((bound.max() - bound.min()).norm() / 2.0f);
 
   // setup camera
   Camera camera{};
@@ -63,14 +59,20 @@ int main(int argc, const char *argv[]) {
   setup_event_callback(window, controller);
 
   sg_pass_action pass_action{};
+  pass_action.colors[0].action = SG_ACTION_CLEAR;
+  for (auto &i : pass_action.colors[0].val) {
+    i = 0.0f;
+  }
   sg_bindings binds = {};
-  VSShaderUniform vs_params{};
+  vs_params_t vs_params{};
+  fs_params_t fs_params{};
   while (!glfwWindowShouldClose(window)) {
     controller.update();
     camera.lookAt(controller.position, controller.target, controller.up);
 
     const Eigen::Matrix4f viewMatrix = camera.getViewMatrix().inverse();
     auto &projectionMatrix = camera.getCullingProjectionMatrix();
+    fs_params.view_pos = controller.position;
     vs_params.camera = projectionMatrix * viewMatrix;
 
     sg_begin_default_pass(&pass_action, width, height);
@@ -85,6 +87,10 @@ int main(int argc, const char *argv[]) {
                           gltf_node.children.end());
       }
 
+      if (gltf_node.mesh == -1) {
+        continue;
+      }
+
       auto &gltf_mesh = model.gltf.meshes[gltf_node.mesh];
       for (uint32_t idx = 0; idx < gltf_mesh.primitives.size(); idx++) {
         string id = to_string(gltf_node.mesh) + "-" + to_string(idx);
@@ -95,7 +101,10 @@ int main(int argc, const char *argv[]) {
 
         auto &mesh = mesh_pos->second;
         binds.index_buffer = mesh.geometry.indices;
-        binds.vertex_buffers[0] = mesh.geometry.vertices;
+        binds.vertex_buffers[0] = mesh.geometry.positions;
+        binds.vertex_buffers[1] = mesh.geometry.normals;
+        binds.vertex_buffers[2] = mesh.geometry.uvs;
+        binds.fs_images[SLOT_albedo] = mesh.albedo;
 
         sg_apply_pipeline(mesh.pipeline);
         sg_apply_bindings(&binds);
@@ -104,9 +113,10 @@ int main(int argc, const char *argv[]) {
           vs_params.model.data()[i] = gltf_node.matrix[i];
         }
 
-        sg_apply_uniforms(SG_SHADERSTAGE_VS, 0,
-                          reinterpret_cast<void *>(&vs_params),
-                          sizeof(Eigen::Matrix4f) * 2);
+        sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &vs_params,
+                          sizeof(vs_params_t));
+        sg_apply_uniforms(SG_SHADERSTAGE_FS, 0, &fs_params,
+                          sizeof(fs_params_t));
         sg_draw(0, mesh.geometry.num, 1);
       }
     }

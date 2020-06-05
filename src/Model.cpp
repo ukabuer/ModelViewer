@@ -2,7 +2,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "Model.hpp"
-#include "shaders/triangle.glsl.c"
+#include "shaders/render.glsl.h"
 #include <Eigen/Core>
 #include <iostream>
 
@@ -182,17 +182,60 @@ auto Model::Load(const char *filename) -> Model {
       if (position_pos != primitive.attributes.end()) {
         auto &gltf_accessor = gltf_model.accessors[position_pos->second];
         auto &buffer = model.buffers[gltf_accessor.bufferView];
-        mesh.geometry.vertices = buffer;
+        mesh.geometry.positions = buffer;
         if (mesh.geometry.num == 0) {
           mesh.geometry.num = gltf_accessor.count;
         }
-        pipeline_desc.layout.attrs[0].format =
+        pipeline_desc.layout.attrs[ATTR_vs_position].format =
             get_attribute_format(gltf_accessor);
-        pipeline_desc.layout.attrs[0].buffer_index = 0;
-        pipeline_desc.layout.attrs[0].offset = gltf_accessor.byteOffset;
+        pipeline_desc.layout.attrs[ATTR_vs_position].buffer_index = 0;
+        pipeline_desc.layout.attrs[ATTR_vs_position].offset =
+            gltf_accessor.byteOffset;
+      } else {
+        throw runtime_error("no pos");
       }
+      auto normal_pos = primitive.attributes.find("NORMAL");
+      if (normal_pos != primitive.attributes.end()) {
+        auto &gltf_accessor = gltf_model.accessors[normal_pos->second];
+        auto &buffer = model.buffers[gltf_accessor.bufferView];
+        mesh.geometry.normals = buffer;
+        pipeline_desc.layout.attrs[ATTR_vs_normal].format =
+            get_attribute_format(gltf_accessor);
+        pipeline_desc.layout.attrs[ATTR_vs_normal].buffer_index = 1;
+        pipeline_desc.layout.attrs[ATTR_vs_normal].offset =
+            gltf_accessor.byteOffset;
+      } else {
+        throw runtime_error("no normal");
+      }
+      auto uv_pos = primitive.attributes.find("TEXCOORD_0");
+      if (uv_pos != primitive.attributes.end()) {
+        auto &gltf_accessor = gltf_model.accessors[uv_pos->second];
+        auto &buffer = model.buffers[gltf_accessor.bufferView];
+        mesh.geometry.uvs = buffer;
+        pipeline_desc.layout.attrs[ATTR_vs_uv].format =
+            get_attribute_format(gltf_accessor);
+        pipeline_desc.layout.attrs[ATTR_vs_uv].buffer_index = 2;
+        pipeline_desc.layout.attrs[ATTR_vs_uv].offset =
+            gltf_accessor.byteOffset;
+      } else {
+        throw runtime_error("no uv");
+      }
+
       pipeline_desc.shader = shader;
+      pipeline_desc.rasterizer.cull_mode = SG_CULLMODE_BACK;
+      pipeline_desc.rasterizer.face_winding = SG_FACEWINDING_CCW;
+      pipeline_desc.depth_stencil.depth_compare_func = SG_COMPAREFUNC_LESS;
+      pipeline_desc.depth_stencil.depth_write_enabled = true;
       mesh.pipeline = sg_make_pipeline(pipeline_desc);
+
+      // handle material
+      auto material_idx = primitive.material;
+      auto &gltf_material = gltf_model.materials[material_idx];
+      auto &pbr_params = gltf_material.pbrMetallicRoughness;
+      if (pbr_params.baseColorTexture.index == -1) {
+        throw runtime_error("no base color texture");
+      }
+      mesh.albedo = model.textures[pbr_params.baseColorTexture.index];
 
       string id = to_string(i) + "-" + to_string(j);
       model.meshes.emplace(id, mesh);

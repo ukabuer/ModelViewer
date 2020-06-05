@@ -9,7 +9,9 @@
 #include <vector>
 
 struct Geometry {
-  sg_buffer vertices;
+  sg_buffer positions;
+  sg_buffer normals;
+  sg_buffer uvs;
   sg_buffer indices;
   uint32_t num;
 };
@@ -17,6 +19,7 @@ struct Geometry {
 struct Mesh {
   Geometry geometry{};
   // Material material {};
+  sg_image albedo;
   sg_pipeline pipeline{};
 };
 
