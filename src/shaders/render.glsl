@@ -2,15 +2,15 @@
 #pragma sokol @ctype mat4 Eigen::Matrix4f
 
 #pragma sokol @vs vs
-layout(location = 0) in vec3 position;
-layout(location = 1) in vec3 normal;
-layout(location = 2) in vec2 uv;
+in vec3 position;
+in vec3 normal;
+in vec2 uv;
 
 out vec3 v_normal;
 out vec2 v_uv;
 out vec3 v_world_pos;
 
-uniform vs_params {
+uniform geometry_vs_params {
   mat4 model;
   mat4 camera;
 };
@@ -28,26 +28,19 @@ void main() {
 in vec3 v_normal;
 in vec2 v_uv;
 in vec3 v_world_pos;
-out vec4 color;
+
+out vec3 g_world_pos;
+out vec3 g_normal;
+out vec4 g_albedo;
 
 uniform sampler2D albedo;
-uniform fs_params {
-  vec3 view_pos;
-};
 
 void main() {
-  vec3 view_dir = normalize(view_pos - v_world_pos);
-  vec3 light_dir = normalize(vec3(0.0f, 4.0f, 0.0f) - v_world_pos);
-  vec3 halfway_dir = normalize(view_dir + light_dir);
-
-  float diffuse_strength = max(dot(v_normal, light_dir), 0.0f);
-  float specular_strength = pow(max(dot(v_normal, halfway_dir), 0.0f), 32);
-
-  vec3 base = texture(albedo, v_uv).rgb;
-  vec3 ambient = base * 0.1f;
-
-  color = vec4(ambient + base * diffuse_strength + specular_strength * vec3(1.0f), 1.0f);
+  g_world_pos = v_world_pos;
+  g_normal = v_normal;
+  g_albedo.rgb = texture(albedo, v_uv).rgb;
+  g_albedo.a = 0.6f;
 }
   #pragma sokol @end
 
-  #pragma sokol @program triangle vs fs
+  #pragma sokol @program deferred vs fs

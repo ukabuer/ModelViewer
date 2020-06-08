@@ -110,7 +110,7 @@ auto Model::Load(const char *filename) -> Model {
     cout << "Loading model warning: " << warn << endl;
   }
 
-  auto shader_desc = triangle_shader_desc();
+  auto shader_desc = deferred_shader_desc();
   auto shader = sg_make_shader(shader_desc);
 
   Model model{};
@@ -226,6 +226,9 @@ auto Model::Load(const char *filename) -> Model {
       pipeline_desc.rasterizer.face_winding = SG_FACEWINDING_CCW;
       pipeline_desc.depth_stencil.depth_compare_func = SG_COMPAREFUNC_LESS;
       pipeline_desc.depth_stencil.depth_write_enabled = true;
+      pipeline_desc.blend.color_attachment_count = 3;
+      pipeline_desc.blend.color_format = SG_PIXELFORMAT_RGBA32F;
+      pipeline_desc.blend.depth_format = SG_PIXELFORMAT_DEPTH;
       mesh.pipeline = sg_make_pipeline(pipeline_desc);
 
       // handle material

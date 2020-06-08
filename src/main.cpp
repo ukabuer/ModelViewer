@@ -11,6 +11,7 @@
 // clang-format off
 #include "Model.hpp"
 #include "shaders/render.glsl.h"
+#include "shaders/postprocess.glsl.h"
 // clang-format on
 
 using namespace std;
@@ -58,24 +59,88 @@ int main(int argc, const char *argv[]) {
   controller.position[2] += radius;
   setup_event_callback(window, controller);
 
-  sg_pass_action pass_action{};
-  pass_action.colors[0].action = SG_ACTION_CLEAR;
-  for (auto &i : pass_action.colors[0].val) {
+  // geometry pass
+  sg_image_desc image_desc{};
+  image_desc.render_target = true;
+  image_desc.width = width;
+  image_desc.height = height;
+  image_desc.min_filter = SG_FILTER_LINEAR;
+  image_desc.mag_filter = SG_FILTER_LINEAR;
+  image_desc.wrap_u = SG_WRAP_CLAMP_TO_EDGE;
+  image_desc.wrap_v = SG_WRAP_CLAMP_TO_EDGE;
+  image_desc.pixel_format = SG_PIXELFORMAT_RGBA32F;
+
+  sg_image_desc depth_desc = image_desc;
+  depth_desc.pixel_format = SG_PIXELFORMAT_DEPTH;
+
+  sg_pass_desc geometry_pass_desc{};
+  geometry_pass_desc.color_attachments[0].image = sg_make_image(image_desc);
+  geometry_pass_desc.color_attachments[1].image = sg_make_image(image_desc);
+  geometry_pass_desc.color_attachments[2].image = sg_make_image(image_desc);
+  geometry_pass_desc.depth_stencil_attachment.image = sg_make_image(depth_desc);
+  auto geometry_pass = sg_make_pass(geometry_pass_desc);
+
+  sg_pass_action geometry_pass_action{};
+  for (int i = 0; i < 3; i++) {
+    geometry_pass_action.colors[i].action = SG_ACTION_CLEAR;
+    for (auto &j : geometry_pass_action.colors[i].val) {
+      j = 0.0f;
+    }
+  }
+
+  sg_bindings geometry_pass_binds = {};
+
+  geometry_vs_params_t geometry_vs_params{};
+
+  // postprocess pass
+  const vector<float> screen_quad = {
+      -1.0, -1.0, 0.0, 0.0, 1.0, -1.0, 1.0, 0.0,
+      -1.0, 1.0,  0.0, 1.0, 1.0, 1.0,  1.0, 1.0,
+  };
+  sg_buffer_desc screen_quad_desc = {};
+  screen_quad_desc.type = SG_BUFFERTYPE_VERTEXBUFFER;
+  screen_quad_desc.size = screen_quad.size() * sizeof(float);
+  screen_quad_desc.content = screen_quad.data();
+  auto screen_quad_buffer = sg_make_buffer(screen_quad_desc);
+
+  sg_pass_action postprocess_pass_action{};
+  postprocess_pass_action.colors[0].action = SG_ACTION_CLEAR;
+  for (auto &i : postprocess_pass_action.colors[0].val) {
     i = 0.0f;
   }
-  sg_bindings binds = {};
-  vs_params_t vs_params{};
-  fs_params_t fs_params{};
+
+  sg_pipeline_desc postprocess_pipeline_desc{};
+  postprocess_pipeline_desc.shader = sg_make_shader(postprocess_shader_desc());
+  postprocess_pipeline_desc.layout.attrs[ATTR_postprocess_vs_position].format =
+      SG_VERTEXFORMAT_FLOAT2;
+  postprocess_pipeline_desc.layout.attrs[ATTR_postprocess_vs_uv].format =
+      SG_VERTEXFORMAT_FLOAT2;
+  postprocess_pipeline_desc.layout.attrs[ATTR_postprocess_vs_uv].offset =
+      2 * sizeof(float);
+  postprocess_pipeline_desc.layout.buffers[0].stride = 4 * sizeof(float);
+  postprocess_pipeline_desc.primitive_type = SG_PRIMITIVETYPE_TRIANGLE_STRIP;
+  auto postprocess_pipeline = sg_make_pipeline(postprocess_pipeline_desc);
+
+  sg_bindings postprocess_pass_binds = {};
+  postprocess_pass_binds.fs_images[SLOT_g_world_pos] =
+      geometry_pass_desc.color_attachments[0].image;
+  postprocess_pass_binds.fs_images[SLOT_g_normal] =
+      geometry_pass_desc.color_attachments[1].image;
+  postprocess_pass_binds.fs_images[SLOT_g_albedo] =
+      geometry_pass_desc.color_attachments[2].image;
+  postprocess_pass_binds.vertex_buffers[0] = screen_quad_buffer;
+  postprocess_fs_params_t postprocess_fs_params{};
+
   while (!glfwWindowShouldClose(window)) {
     controller.update();
     camera.lookAt(controller.position, controller.target, controller.up);
 
     const Eigen::Matrix4f viewMatrix = camera.getViewMatrix().inverse();
     auto &projectionMatrix = camera.getCullingProjectionMatrix();
-    fs_params.view_pos = controller.position;
-    vs_params.camera = projectionMatrix * viewMatrix;
+    postprocess_fs_params.view_pos = controller.position;
+    geometry_vs_params.camera = projectionMatrix * viewMatrix;
 
-    sg_begin_default_pass(&pass_action, width, height);
+    sg_begin_pass(geometry_pass, geometry_pass_action);
     auto gltf_nodes = scene.nodes;
     while (!gltf_nodes.empty()) {
       auto node_idx = gltf_nodes.back();
@@ -100,27 +165,36 @@ int main(int argc, const char *argv[]) {
         }
 
         auto &mesh = mesh_pos->second;
-        binds.index_buffer = mesh.geometry.indices;
-        binds.vertex_buffers[0] = mesh.geometry.positions;
-        binds.vertex_buffers[1] = mesh.geometry.normals;
-        binds.vertex_buffers[2] = mesh.geometry.uvs;
-        binds.fs_images[SLOT_albedo] = mesh.albedo;
+        geometry_pass_binds.index_buffer = mesh.geometry.indices;
+        geometry_pass_binds.vertex_buffers[ATTR_vs_position] =
+            mesh.geometry.positions;
+        geometry_pass_binds.vertex_buffers[ATTR_vs_normal] =
+            mesh.geometry.normals;
+        geometry_pass_binds.vertex_buffers[ATTR_vs_uv] = mesh.geometry.uvs;
+        geometry_pass_binds.fs_images[SLOT_albedo] = mesh.albedo;
 
         sg_apply_pipeline(mesh.pipeline);
-        sg_apply_bindings(&binds);
-        vs_params.model = Eigen::Matrix4f::Identity();
+        sg_apply_bindings(geometry_pass_binds);
+        geometry_vs_params.model = Eigen::Matrix4f::Identity();
         for (int i = 0; i < gltf_node.matrix.size(); i++) {
-          vs_params.model.data()[i] = gltf_node.matrix[i];
+          geometry_vs_params.model.data()[i] = gltf_node.matrix[i];
         }
 
-        sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &vs_params,
-                          sizeof(vs_params_t));
-        sg_apply_uniforms(SG_SHADERSTAGE_FS, 0, &fs_params,
-                          sizeof(fs_params_t));
+        sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_geometry_vs_params,
+                          &geometry_vs_params, sizeof(geometry_vs_params_t));
         sg_draw(0, mesh.geometry.num, 1);
       }
     }
     sg_end_pass();
+
+    sg_begin_default_pass(postprocess_pass_action, width, height);
+    sg_apply_pipeline(postprocess_pipeline);
+    sg_apply_bindings(postprocess_pass_binds);
+    sg_apply_uniforms(SG_SHADERSTAGE_FS, SLOT_postprocess_fs_params,
+                      &postprocess_fs_params, sizeof(postprocess_fs_params_t));
+    sg_draw(0, 4, 1);
+    sg_end_pass();
+
     sg_commit();
     glfwSwapBuffers(window);
     glfwPollEvents();
