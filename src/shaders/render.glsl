@@ -18,7 +18,7 @@ uniform geometry_vs_params {
 void main() {
   vec4 world_pos = model * vec4(position, 1.0f);
   v_uv = uv;
-  v_normal = normal;
+  v_normal = mat3(transpose(inverse(model))) * normal;
   v_world_pos = world_pos.xyz / world_pos.w;
   gl_Position = camera * world_pos;
 }

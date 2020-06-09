@@ -4,6 +4,7 @@
 #include "Model.hpp"
 #include "shaders/render.glsl.h"
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <iostream>
 
 using namespace std;
@@ -114,7 +115,6 @@ auto Model::Load(const char *filename) -> Model {
   auto shader = sg_make_shader(shader_desc);
 
   Model model{};
-  model.gltf = gltf_model;
 
   // setup buffers
   for (auto &gltf_buffer_view : gltf_model.bufferViews) {
@@ -244,6 +244,43 @@ auto Model::Load(const char *filename) -> Model {
       model.meshes.emplace(id, mesh);
     }
   }
+
+  // handle node transform
+  for (auto &gltf_node : gltf_model.nodes) {
+    if (gltf_node.matrix.size() == 16) {
+      continue;
+    }
+
+    gltf_node.matrix.resize(16);
+    Eigen::Affine3f transform = Affine3f::Identity();
+    Vector3f scale{1.0f, 1.0f, 1.0f};
+    for (size_t i = 0; i < gltf_node.scale.size(); i++) {
+      scale[i] = gltf_node.scale[i];
+    }
+
+    Quaternionf rotation(1.0f, 0.0f, 0.0f, 0.0f);
+    if (gltf_node.rotation.size() >= 4) {
+      rotation.x() = gltf_node.rotation[0];
+      rotation.y() = gltf_node.rotation[1];
+      rotation.z() = gltf_node.rotation[2];
+      rotation.w() = gltf_node.rotation[3];
+    }
+
+    Translation3f translation{0.0f, 0.0f, 0.0f};
+    for (size_t i = 0; i < gltf_node.translation.size(); i++) {
+      translation.vector()[i] = gltf_node.translation[i];
+    }
+
+    transform.prescale(scale);
+    transform.prerotate(rotation);
+    transform.pretranslate(translation.vector());
+
+    for (uint32_t i = 0; i < 16; i++) {
+      gltf_node.matrix[i] = transform.data()[i];
+    }
+  }
+
+  model.gltf = move(gltf_model);
 
   return model;
 }

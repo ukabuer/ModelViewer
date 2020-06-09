@@ -7,7 +7,9 @@
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 #include <iostream>
+#include <stack>
 #include <string>
+#include <unordered_set>
 // clang-format off
 #include "Model.hpp"
 #include "shaders/render.glsl.h"
@@ -53,10 +55,10 @@ int main(int argc, const char *argv[]) {
                        static_cast<float>(width) / static_cast<float>(height),
                        0.01f, 1000.0f);
 
-  TrackballController controller{640, 480};
+  TrackballController controller{800, 600};
   controller.target = (bound.min() + bound.max()) / 2.0f;
   controller.position = controller.target;
-  controller.position[2] += radius;
+  controller.position[2] += radius * 1.2;
   setup_event_callback(window, controller);
 
   // geometry pass
@@ -129,6 +131,7 @@ int main(int argc, const char *argv[]) {
   postprocess_pass_binds.fs_images[SLOT_g_albedo] =
       geometry_pass_desc.color_attachments[2].image;
   postprocess_pass_binds.vertex_buffers[0] = screen_quad_buffer;
+
   postprocess_fs_params_t postprocess_fs_params{};
 
   while (!glfwWindowShouldClose(window)) {
@@ -141,48 +144,77 @@ int main(int argc, const char *argv[]) {
     geometry_vs_params.camera = projectionMatrix * viewMatrix;
 
     sg_begin_pass(geometry_pass, geometry_pass_action);
-    auto gltf_nodes = scene.nodes;
-    while (!gltf_nodes.empty()) {
-      auto node_idx = gltf_nodes.back();
-      gltf_nodes.pop_back();
+    auto gltf_node_idxs = scene.nodes;
+    unordered_set<int> processed{};
+    if (!gltf_node_idxs.empty()) {
+      stack<int> remain_nodes{};
+      stack<Eigen::Matrix4f> transforms{};
+      remain_nodes.emplace(gltf_node_idxs[0]);
 
-      auto &gltf_node = model.gltf.nodes[node_idx];
-      if (!gltf_node.children.empty()) {
-        gltf_nodes.insert(gltf_nodes.end(), gltf_node.children.begin(),
-                          gltf_node.children.end());
+      Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+      for (auto i = 0; i < 16; i++) {
+        transform.data()[i] = model.gltf.nodes[remain_nodes.top()].matrix[i];
       }
+      transforms.emplace(move(transform));
+      while (!remain_nodes.empty()) {
+        auto &current_idx = remain_nodes.top();
+        auto &current = model.gltf.nodes[current_idx];
 
-      if (gltf_node.mesh == -1) {
-        continue;
-      }
+        auto has_new = false;
+        for (auto child_idx : current.children) {
+          if (processed.find(child_idx) == processed.end()) {
+            remain_nodes.emplace(child_idx);
+            auto &child_node = model.gltf.nodes[child_idx];
+            auto &parent_transform = transforms.top();
+            Eigen::Matrix4f child_transform = Eigen::Matrix4f::Identity();
+            for (auto i = 0; i < 16; i++) {
+              child_transform.data()[i] = child_node.matrix[i];
+            }
+            transforms.emplace(parent_transform * child_transform);
+            has_new = true;
+            break;
+          }
+        }
 
-      auto &gltf_mesh = model.gltf.meshes[gltf_node.mesh];
-      for (uint32_t idx = 0; idx < gltf_mesh.primitives.size(); idx++) {
-        string id = to_string(gltf_node.mesh) + "-" + to_string(idx);
-        auto mesh_pos = model.meshes.find(id);
-        if (mesh_pos == model.meshes.end()) {
+        if (has_new) {
           continue;
         }
 
-        auto &mesh = mesh_pos->second;
-        geometry_pass_binds.index_buffer = mesh.geometry.indices;
-        geometry_pass_binds.vertex_buffers[ATTR_vs_position] =
-            mesh.geometry.positions;
-        geometry_pass_binds.vertex_buffers[ATTR_vs_normal] =
-            mesh.geometry.normals;
-        geometry_pass_binds.vertex_buffers[ATTR_vs_uv] = mesh.geometry.uvs;
-        geometry_pass_binds.fs_images[SLOT_albedo] = mesh.albedo;
+        if (current.mesh != -1) {
+          auto &gltf_mesh = model.gltf.meshes[current.mesh];
+          for (uint32_t idx = 0; idx < gltf_mesh.primitives.size(); idx++) {
+            string id = to_string(current.mesh) + "-" + to_string(idx);
+            auto mesh_pos = model.meshes.find(id);
+            if (mesh_pos == model.meshes.end()) {
+              continue;
+            }
 
-        sg_apply_pipeline(mesh.pipeline);
-        sg_apply_bindings(geometry_pass_binds);
-        geometry_vs_params.model = Eigen::Matrix4f::Identity();
-        for (int i = 0; i < gltf_node.matrix.size(); i++) {
-          geometry_vs_params.model.data()[i] = gltf_node.matrix[i];
+            auto &mesh = mesh_pos->second;
+            geometry_pass_binds.index_buffer = mesh.geometry.indices;
+            geometry_pass_binds.vertex_buffers[ATTR_vs_position] =
+                mesh.geometry.positions;
+            geometry_pass_binds.vertex_buffers[ATTR_vs_normal] =
+                mesh.geometry.normals;
+            geometry_pass_binds.vertex_buffers[ATTR_vs_uv] = mesh.geometry.uvs;
+            geometry_pass_binds.fs_images[SLOT_albedo] = mesh.albedo;
+
+            sg_apply_pipeline(mesh.pipeline);
+            sg_apply_bindings(geometry_pass_binds);
+            geometry_vs_params.model = Eigen::Matrix4f::Identity();
+            for (int i = 0; i < current.matrix.size(); i++) {
+              geometry_vs_params.model.data()[i] = current.matrix[i];
+            }
+
+            sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_geometry_vs_params,
+                              &geometry_vs_params,
+                              sizeof(geometry_vs_params_t));
+            sg_draw(0, mesh.geometry.num, 1);
+          }
         }
 
-        sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_geometry_vs_params,
-                          &geometry_vs_params, sizeof(geometry_vs_params_t));
-        sg_draw(0, mesh.geometry.num, 1);
+        processed.emplace(remain_nodes.top());
+        remain_nodes.pop();
+        transforms.pop();
       }
     }
     sg_end_pass();
