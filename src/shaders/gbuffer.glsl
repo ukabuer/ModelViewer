@@ -1,7 +1,7 @@
 #pragma sokol @ctype vec3 Eigen::Vector3f
 #pragma sokol @ctype mat4 Eigen::Matrix4f
 
-#pragma sokol @vs vs
+#pragma sokol @vs gbuffer_vs
 in vec3 position;
 in vec3 normal;
 in vec2 uv;
@@ -10,7 +10,7 @@ out vec3 v_normal;
 out vec2 v_uv;
 out vec3 v_world_pos;
 
-uniform geometry_vs_params {
+uniform gbuffer_vs_params {
   mat4 model;
   mat4 camera;
 };
@@ -24,7 +24,7 @@ void main() {
 }
   #pragma sokol @end
 
-  #pragma sokol @fs fs
+  #pragma sokol @fs gbuffer_fs
 in vec3 v_normal;
 in vec2 v_uv;
 in vec3 v_world_pos;
@@ -43,4 +43,4 @@ void main() {
 }
   #pragma sokol @end
 
-  #pragma sokol @program deferred vs fs
+  #pragma sokol @program gbuffer gbuffer_vs gbuffer_fs

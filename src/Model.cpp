@@ -2,7 +2,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "Model.hpp"
-#include "shaders/render.glsl.h"
+#include "shaders/gbuffer.glsl.h"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <iostream>
@@ -111,7 +111,7 @@ auto Model::Load(const char *filename) -> Model {
     cout << "Loading model warning: " << warn << endl;
   }
 
-  auto shader_desc = deferred_shader_desc();
+  auto shader_desc = gbuffer_shader_desc();
   auto shader = sg_make_shader(shader_desc);
 
   Model model{};
@@ -186,10 +186,10 @@ auto Model::Load(const char *filename) -> Model {
         if (mesh.geometry.num == 0) {
           mesh.geometry.num = gltf_accessor.count;
         }
-        pipeline_desc.layout.attrs[ATTR_vs_position].format =
+        pipeline_desc.layout.attrs[ATTR_gbuffer_vs_position].format =
             get_attribute_format(gltf_accessor);
-        pipeline_desc.layout.attrs[ATTR_vs_position].buffer_index = 0;
-        pipeline_desc.layout.attrs[ATTR_vs_position].offset =
+        pipeline_desc.layout.attrs[ATTR_gbuffer_vs_position].buffer_index = 0;
+        pipeline_desc.layout.attrs[ATTR_gbuffer_vs_position].offset =
             gltf_accessor.byteOffset;
       } else {
         throw runtime_error("no pos");
@@ -199,10 +199,10 @@ auto Model::Load(const char *filename) -> Model {
         auto &gltf_accessor = gltf_model.accessors[normal_pos->second];
         auto &buffer = model.buffers[gltf_accessor.bufferView];
         mesh.geometry.normals = buffer;
-        pipeline_desc.layout.attrs[ATTR_vs_normal].format =
+        pipeline_desc.layout.attrs[ATTR_gbuffer_vs_normal].format =
             get_attribute_format(gltf_accessor);
-        pipeline_desc.layout.attrs[ATTR_vs_normal].buffer_index = 1;
-        pipeline_desc.layout.attrs[ATTR_vs_normal].offset =
+        pipeline_desc.layout.attrs[ATTR_gbuffer_vs_normal].buffer_index = 1;
+        pipeline_desc.layout.attrs[ATTR_gbuffer_vs_normal].offset =
             gltf_accessor.byteOffset;
       } else {
         throw runtime_error("no normal");
@@ -212,10 +212,10 @@ auto Model::Load(const char *filename) -> Model {
         auto &gltf_accessor = gltf_model.accessors[uv_pos->second];
         auto &buffer = model.buffers[gltf_accessor.bufferView];
         mesh.geometry.uvs = buffer;
-        pipeline_desc.layout.attrs[ATTR_vs_uv].format =
+        pipeline_desc.layout.attrs[ATTR_gbuffer_vs_uv].format =
             get_attribute_format(gltf_accessor);
-        pipeline_desc.layout.attrs[ATTR_vs_uv].buffer_index = 2;
-        pipeline_desc.layout.attrs[ATTR_vs_uv].offset =
+        pipeline_desc.layout.attrs[ATTR_gbuffer_vs_uv].buffer_index = 2;
+        pipeline_desc.layout.attrs[ATTR_gbuffer_vs_uv].offset =
             gltf_accessor.byteOffset;
       } else {
         throw runtime_error("no uv");
