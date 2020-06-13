@@ -33,7 +33,7 @@ static auto orthographic(float left, float right, float top, float bottom,
     const auto z = (far + near) * p;
 
     m(0, 0) = 2.0f * w;
-    m(1, 3) = -x;
+    m(0, 3) = -x;
     m(1, 1) = 2.0f * h;
     m(1, 3) = -y;
     m(2, 2) = -2.0f * p;

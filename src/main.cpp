@@ -77,7 +77,7 @@ int main(int argc, const char *argv[]) {
 
     shadow_pass.run(model);
     gbuffer_pass.run(model, camera_matrix);
-    lighting_pass.run(controller.position);
+    lighting_pass.run(controller.position, shadow_pass.light);
     skybox_pass.run(camera_matrix);
     postprocess_pass.run(width, height);
 

@@ -240,8 +240,9 @@ auto Model::Load(const char *filename) -> Model {
 
       shadow_pipeline_desc.shader = shadow_pass_shader;
       shadow_pipeline_desc.rasterizer = pipeline_desc.rasterizer;
+      shadow_pipeline_desc.depth_stencil = pipeline_desc.depth_stencil;
       shadow_pipeline_desc.blend.color_format = SG_PIXELFORMAT_RGBA8;
-      shadow_pipeline_desc.blend.depth_format = SG_PIXELFORMAT_NONE;
+      shadow_pipeline_desc.blend.depth_format = SG_PIXELFORMAT_DEPTH;
       mesh.shadow_pass_pipeline = sg_make_pipeline(shadow_pipeline_desc);
 
       // handle material

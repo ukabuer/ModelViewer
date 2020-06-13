@@ -12,7 +12,7 @@ uniform shadow_vs_params {
 
 void main() {
   gl_Position = light_space_matrix * model * vec4(position, 1.0);
-  depth = gl_Position.z / gl_Position.w;
+  depth = (gl_Position.z * 0.5 + 0.5) / gl_Position.w;
 }
 #pragma sokol @end
 

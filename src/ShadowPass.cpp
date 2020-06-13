@@ -22,26 +22,38 @@ ShadowPass::ShadowPass() {
   shadow_map_desc.wrap_u = SG_WRAP_CLAMP_TO_EDGE;
   shadow_map_desc.wrap_v = SG_WRAP_CLAMP_TO_EDGE;
 
+  sg_image_desc depth_desc  = shadow_map_desc;
+  depth_desc.pixel_format = SG_PIXELFORMAT_DEPTH;
+
   sg_pass_desc shadow_pass_desc{};
   shadow_pass_desc.color_attachments[0].image = sg_make_image(shadow_map_desc);
+  shadow_pass_desc.depth_stencil_attachment.image = sg_make_image(depth_desc);
   pass = sg_make_pass(shadow_pass_desc);
 
   pass_action.colors[0].action = SG_ACTION_CLEAR;
   pass_action.colors[0].val[0] = 1.0f;
+  pass_action.colors[0].val[1] = 1.0f;
+  pass_action.colors[0].val[2] = 1.0f;
+  pass_action.colors[0].val[3] = 1.0f;
   pass_action.depth.action = SG_ACTION_CLEAR;
+  pass_action.depth.val = 1.0f;
+
+  Camera camera{};
+  camera.setProjection(Camera::Projection::Orthographic, -3.0f, 3.0f, 3.0f,
+                       -3.0f, 1.0f, 10.0f);
+  camera.lookAt(-direction * 5.0f, Eigen::Vector3f{0.0f, 0.0f, 0.0f},
+                Eigen::Vector3f{0.0f, 0.0f, 1.0f});
+  const Eigen::Matrix4f view_matrix = camera.getViewMatrix().inverse();
+  auto &projection_matrix = camera.getCullingProjectionMatrix();
+  light_space_matrix = projection_matrix * view_matrix;
+  light.shadow_map = shadow_pass_desc.color_attachments[0].image;
+  light.matrix = light_space_matrix;
+  light.direction = direction;
 }
 
 void ShadowPass::run(const Model &model) {
-  Camera camera{};
-  camera.setProjection(Camera::Projection::Orthographic, -10.0f, 10.0f, -10.0f,
-                       -10.0f, 0.1f, 100.0f);
-  camera.lookAt(direction * 5.0f, Eigen::Vector3f{0.0f, 0.0f, 0.0f},
-                Eigen::Vector3f{0.0f, 1.0f, 0.0f});
-  const Eigen::Matrix4f view_matrix = camera.getViewMatrix().inverse();
-  auto &projection_matrix = camera.getCullingProjectionMatrix();
-
   shadow_vs_params_t shadow_vs_params{};
-  shadow_vs_params.light_space_matrix = projection_matrix * view_matrix;
+  shadow_vs_params.light_space_matrix = light_space_matrix;
 
   auto scene = model.gltf.scenes[model.gltf.defaultScene];
 

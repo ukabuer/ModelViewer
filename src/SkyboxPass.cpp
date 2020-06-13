@@ -25,8 +25,8 @@ SkyboxPass::SkyboxPass(const sg_image &color, const sg_image &depth) {
     skybox_texture_desc.content.subimage[i][0].ptr = data;
     skybox_texture_desc.content.subimage[i][0].size =
         skybox_texture_desc.width * skybox_texture_desc.width * image_channels;
-    stbi_image_free(data);
   }
+  auto skybox_cube = sg_make_image(skybox_texture_desc);
 
   // clang-format off
   vector<float> skybox_positions = {
@@ -77,7 +77,7 @@ SkyboxPass::SkyboxPass(const sg_image &color, const sg_image &depth) {
 
   bindings.vertex_buffers[0] = sg_make_buffer(skybox_vertices_buffer_desc);
   bindings.index_buffer = sg_make_buffer(skybox_indices_buffer_desc);
-  bindings.fs_images[SLOT_skybox_cube] = sg_make_image(skybox_texture_desc);;
+  bindings.fs_images[SLOT_skybox_cube] = skybox_cube;
 
   sg_pipeline_desc pipeline_desc{};
   pipeline_desc.shader = sg_make_shader(skybox_shader_desc());

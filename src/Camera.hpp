@@ -17,7 +17,7 @@ public:
                 const Eigen::Vector3f &up) noexcept;
 
     void setProjection(Projection projection, float left, float right,
-                       float bottom, float top, float near, float far) noexcept;
+                       float top, float bottom, float near, float far) noexcept;
 
     void setProjection(float fov, float aspect, float z_near, float z_far,
                        Fov direction = Fov::VERTICAL) noexcept;
