@@ -1,5 +1,4 @@
 #pragma once
-#define SOKOL_GLCORE33
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <cstdint>
@@ -21,6 +20,7 @@ struct Mesh {
   // Material material {};
   sg_image albedo;
   sg_pipeline pipeline{};
+  sg_pipeline shadow_pass_pipeline{};
 };
 
 class Model {

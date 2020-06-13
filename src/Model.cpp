@@ -1,8 +1,10 @@
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#define SOKOL_GLCORE33
 #include "Model.hpp"
 #include "shaders/gbuffer.glsl.h"
+#include "shaders/shadow.glsl.h"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <iostream>
@@ -114,6 +116,9 @@ auto Model::Load(const char *filename) -> Model {
   auto shader_desc = gbuffer_shader_desc();
   auto shader = sg_make_shader(shader_desc);
 
+  auto shadow_pass_shader_desc = shadow_shader_desc();
+  auto shadow_pass_shader = sg_make_shader(shadow_pass_shader_desc);
+
   Model model{};
 
   // setup buffers
@@ -170,6 +175,7 @@ auto Model::Load(const char *filename) -> Model {
 
       Mesh mesh{};
       sg_pipeline_desc pipeline_desc{};
+      sg_pipeline_desc shadow_pipeline_desc{};
       pipeline_desc.primitive_type = get_primitive_type(primitive);
       if (primitive.indices >= 0) {
         auto &gltf_accessor = gltf_model.accessors[primitive.indices];
@@ -194,6 +200,7 @@ auto Model::Load(const char *filename) -> Model {
       } else {
         throw runtime_error("no pos");
       }
+      shadow_pipeline_desc = pipeline_desc;
       auto normal_pos = primitive.attributes.find("NORMAL");
       if (normal_pos != primitive.attributes.end()) {
         auto &gltf_accessor = gltf_model.accessors[normal_pos->second];
@@ -230,6 +237,12 @@ auto Model::Load(const char *filename) -> Model {
       pipeline_desc.blend.color_format = SG_PIXELFORMAT_RGBA32F;
       pipeline_desc.blend.depth_format = SG_PIXELFORMAT_DEPTH;
       mesh.pipeline = sg_make_pipeline(pipeline_desc);
+
+      shadow_pipeline_desc.shader = shadow_pass_shader;
+      shadow_pipeline_desc.rasterizer = pipeline_desc.rasterizer;
+      shadow_pipeline_desc.blend.color_format = SG_PIXELFORMAT_RGBA8;
+      shadow_pipeline_desc.blend.depth_format = SG_PIXELFORMAT_NONE;
+      mesh.shadow_pass_pipeline = sg_make_pipeline(shadow_pipeline_desc);
 
       // handle material
       auto material_idx = primitive.material;
