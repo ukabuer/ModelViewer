@@ -4,6 +4,7 @@
 #include "LightingPass.hpp"
 #include "Model.hpp"
 #include "PostProcessPass.hpp"
+#include "SSAOPass.hpp"
 #include "ShadowPass.hpp"
 #include "SkyboxPass.hpp"
 #include "TrackballController.hpp"
@@ -75,6 +76,8 @@ int main(int argc, const char *argv[]) {
 
   ShadowPass shadow_pass{};
   auto gbuffer_pass = GBufferPass(width, height);
+  auto ssao_pass =
+      SSAOPass(width, height, gbuffer_pass.position, gbuffer_pass.normal);
   auto lighting_pass = LightingPass(width, height, gbuffer_pass.position,
                                     gbuffer_pass.normal, gbuffer_pass.albedo);
   auto skybox_pass = SkyboxPass(lighting_pass.result, gbuffer_pass.depth);
@@ -115,6 +118,7 @@ int main(int argc, const char *argv[]) {
 
     shadow_pass.run(model, light);
     gbuffer_pass.run(model, camera_matrix);
+    ssao_pass.run(view_matrix, projection_matrix);
     lighting_pass.run(controller.position, light);
     skybox_pass.run(camera_matrix);
     postprocess_pass.run(width, height);

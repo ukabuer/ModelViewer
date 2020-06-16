@@ -15,6 +15,7 @@ add_executable(ModelViewer
     SkyboxPass.cpp
     LightingPass.cpp
     GBufferPass.cpp
+    SSAOPass.cpp
     Camera.cpp
     TrackballController.cpp
     utils.cpp)

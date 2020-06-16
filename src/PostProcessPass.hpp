@@ -7,5 +7,5 @@ struct PostProccesPass {
   sg_pipeline pipeline{};
 
   explicit PostProccesPass(const sg_image &rendered);
-  void run(uint32_t width, uint32_t height);
+  void run(uint32_t width, uint32_t height) const;
 };
