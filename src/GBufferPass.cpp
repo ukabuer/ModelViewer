@@ -1,8 +1,8 @@
 #define SOKOL_GLCORE33
 #include "GBufferPass.hpp"
 #include "shaders/gbuffer.glsl.h"
-#include <unordered_set>
 #include <stack>
+#include <unordered_set>
 
 using namespace std;
 
@@ -39,7 +39,8 @@ GBufferPass::GBufferPass(uint32_t width, uint32_t height) {
   pass_action.depth.val = 1.0f;
 }
 
-void GBufferPass::run(const Model &model, const Eigen::Matrix4f &camera_matrix) {
+void GBufferPass::run(const Model &model,
+                      const Eigen::Matrix4f &camera_matrix) {
   gbuffer_vs_params_t gbuffer_vs_params{};
   gbuffer_vs_params.camera = camera_matrix;
   auto scene = model.gltf.scenes[model.gltf.defaultScene];
@@ -98,8 +99,7 @@ void GBufferPass::run(const Model &model, const Eigen::Matrix4f &camera_matrix) 
               mesh.geometry.positions;
           bindings.vertex_buffers[ATTR_gbuffer_vs_normal] =
               mesh.geometry.normals;
-          bindings.vertex_buffers[ATTR_gbuffer_vs_uv] =
-              mesh.geometry.uvs;
+          bindings.vertex_buffers[ATTR_gbuffer_vs_uv] = mesh.geometry.uvs;
           bindings.fs_images[SLOT_albedo] = mesh.albedo;
           sg_apply_bindings(bindings);
 

@@ -10,6 +10,9 @@
 #include "utils.hpp"
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 #include <iostream>
 #define SOKOL_GLCORE33
 #define SOKOL_IMPL
@@ -39,6 +42,16 @@ int main(int argc, const char *argv[]) {
     return -1;
   }
 
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO &io = ImGui::GetIO();
+  (void)io;
+  ImGuiStyle style{};
+  style.WindowRounding = 0.0f;
+  ImGui::StyleColorsDark(&style);
+  ImGui_ImplGlfw_InitForOpenGL(window, true);
+  ImGui_ImplOpenGL3_Init("#version 150");
+
   sg_desc app_desc{};
   sg_setup(&app_desc);
 
@@ -52,7 +65,7 @@ int main(int argc, const char *argv[]) {
   Camera camera{};
   camera.setProjection(45.0f,
                        static_cast<float>(width) / static_cast<float>(height),
-                       0.01f, 1000.0f);
+                       0.1f, 100.0f);
 
   TrackballController controller{800, 600};
   controller.target = (bound.min() + bound.max()) / 2.0f;
@@ -67,21 +80,47 @@ int main(int argc, const char *argv[]) {
   auto skybox_pass = SkyboxPass(lighting_pass.result, gbuffer_pass.depth);
   auto postprocess_pass = PostProccesPass(lighting_pass.result);
 
+  Light light{};
+  light.direction = {0.0f, -1.0f, 0.0f};
+  bool show_demo_window = false;
   while (!glfwWindowShouldClose(window)) {
-    controller.update();
-    camera.lookAt(controller.position, controller.target, controller.up);
+    if (!ImGui::GetIO().WantCaptureMouse) {
+      controller.update();
+      camera.lookAt(controller.position, controller.target, controller.up);
+    }
+
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    ImGui::Begin("Parameters");
+    ImGui::Text("Directional Light Position");
+    ImGui::SliderFloat("x", &(light.direction.data()[0]), -3.0f, 3.0f);
+    ImGui::SliderFloat("y", &(light.direction.data()[1]), -3.0f, 3.0f);
+    ImGui::SliderFloat("z", &(light.direction.data()[2]), -3.0f, 3.0f);
+
+    ImGui::Checkbox("Demo Window", &show_demo_window);
+    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
+                1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGui::End();
+
+    if (show_demo_window) {
+      ImGui::ShowDemoWindow(&show_demo_window);
+    }
+    ImGui::Render();
 
     const Eigen::Matrix4f view_matrix = camera.getViewMatrix().inverse();
     auto &projection_matrix = camera.getCullingProjectionMatrix();
     const Eigen::Matrix4f camera_matrix = projection_matrix * view_matrix;
 
-    shadow_pass.run(model);
+    shadow_pass.run(model, light);
     gbuffer_pass.run(model, camera_matrix);
-    lighting_pass.run(controller.position, shadow_pass.light);
+    lighting_pass.run(controller.position, light);
     skybox_pass.run(camera_matrix);
     postprocess_pass.run(width, height);
-
     sg_commit();
+
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     glfwSwapBuffers(window);
     glfwPollEvents();
   }

@@ -5,7 +5,10 @@
 
 using namespace std;
 
-LightingPass::LightingPass(uint32_t width, uint32_t height, const sg_image &gbuffer_position, const sg_image &gbuffer_normal, const sg_image &gbuffer_albedo) {
+LightingPass::LightingPass(uint32_t width, uint32_t height,
+                           const sg_image &gbuffer_position,
+                           const sg_image &gbuffer_normal,
+                           const sg_image &gbuffer_albedo) {
   sg_image_desc image_desc{};
   image_desc.render_target = true;
   image_desc.width = width;

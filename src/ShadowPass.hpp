@@ -1,24 +1,17 @@
 #pragma once
-#include <sokol_gfx.h>
+#include "Camera.hpp"
+#include "Light.hpp"
 #include "Model.hpp"
-
-struct Light {
-  Eigen::Vector3f direction;
-  Eigen::Matrix4f matrix;
-  sg_image shadow_map;
-};
+#include <sokol_gfx.h>
 
 struct ShadowPass {
-  Eigen::Vector3f direction;
+  sg_pass pass{};
+  sg_pass_action pass_action{};
+  sg_bindings bindings{};
+  sg_image shadow_map{};
 
-  sg_pass pass {};
-  sg_pass_action pass_action {};
-  sg_bindings bindings {};
-
-  Light light {};
-
-  Eigen::Matrix4f light_space_matrix {};
+  Camera camera{};
 
   ShadowPass();
-  void run(const Model &model);
+  void run(const Model &model, Light &light);
 };
