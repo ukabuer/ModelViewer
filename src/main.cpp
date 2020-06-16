@@ -4,6 +4,7 @@
 #include "LightingPass.hpp"
 #include "Model.hpp"
 #include "PostProcessPass.hpp"
+#include "SSAOPass.hpp"
 #include "ShadowPass.hpp"
 #include "SkyboxPass.hpp"
 #include "TrackballController.hpp"
@@ -75,6 +76,8 @@ int main(int argc, const char *argv[]) {
 
   ShadowPass shadow_pass{};
   auto gbuffer_pass = GBufferPass(width, height);
+  auto ssao_pass =
+      SSAOPass(width, height, gbuffer_pass.position, gbuffer_pass.normal);
   auto lighting_pass = LightingPass(width, height, gbuffer_pass.position,
                                     gbuffer_pass.normal, gbuffer_pass.albedo);
   auto skybox_pass = SkyboxPass(lighting_pass.result, gbuffer_pass.depth);
@@ -83,6 +86,7 @@ int main(int argc, const char *argv[]) {
   Light light{};
   light.direction = {0.0f, -1.0f, 0.0f};
   bool show_demo_window = false;
+  bool use_ssao = true;
   while (!glfwWindowShouldClose(window)) {
     if (!ImGui::GetIO().WantCaptureMouse) {
       controller.update();
@@ -98,9 +102,10 @@ int main(int argc, const char *argv[]) {
     ImGui::SliderFloat("x", &(light.direction.data()[0]), -3.0f, 3.0f);
     ImGui::SliderFloat("y", &(light.direction.data()[1]), -3.0f, 3.0f);
     ImGui::SliderFloat("z", &(light.direction.data()[2]), -3.0f, 3.0f);
+    ImGui::Checkbox("Use SSAO", &use_ssao);
 
     ImGui::Checkbox("Demo Window", &show_demo_window);
-    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
+    ImGui::Text("Average %.3f ms/frame (%.1f FPS)",
                 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
     ImGui::End();
 
@@ -115,6 +120,12 @@ int main(int argc, const char *argv[]) {
 
     shadow_pass.run(model, light);
     gbuffer_pass.run(model, camera_matrix);
+    if (use_ssao) {
+      ssao_pass.run(view_matrix, projection_matrix);
+      lighting_pass.enable_ssao(ssao_pass.ao_map);
+    } else {
+      lighting_pass.disable_ssao();
+    }
     lighting_pass.run(controller.position, light);
     skybox_pass.run(camera_matrix);
     postprocess_pass.run(width, height);

@@ -38,9 +38,7 @@ PostProccesPass::PostProccesPass(const sg_image &rendered) {
   bindings.fs_images[SLOT_rendered] = rendered;
 }
 
-void PostProccesPass::run(uint32_t width,
-                          uint32_t height) {
-
+void PostProccesPass::run(uint32_t width, uint32_t height) const {
   sg_begin_default_pass(pass_action, width, height);
   sg_apply_pipeline(pipeline);
   sg_apply_bindings(bindings);

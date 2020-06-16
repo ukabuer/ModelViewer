@@ -29,6 +29,7 @@ uniform sampler2D g_world_pos;
 uniform sampler2D g_normal;
 uniform sampler2D g_albedo;
 uniform sampler2D shadow_map;
+uniform sampler2D ao_map;
 
 float decode_depth(vec4 rgba) {
   return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/160581375.0));
@@ -52,6 +53,7 @@ void main() {
   vec4 albedo = texture(g_albedo, v_uv);
   vec3 diffuse = albedo.rgb;
   float shiniess = albedo.a;
+  float ao = texture(ao_map, v_uv).r;
 
   vec3 view_dir = normalize(view_pos - world_pos);
   vec3 light_dir = normalize(-light_direction);
@@ -59,15 +61,15 @@ void main() {
   float bias = max(0.05 * (1.0 - dot(normal, light_dir)), 0.005);
   float shadow = calculate_shadow(world_pos, bias);
 
-  vec3 ambient = diffuse * 0.2f;
+  vec3 ambient = diffuse * 0.4f;
   if (shadow > 0.0) {
-    color = vec4(ambient, 1.0f);
+    color = vec4(ambient * ao, 1.0f);
   } else {
     vec3 halfway = normalize(view_dir + light_dir);
 
     float diffuse_strength = max(dot(light_dir, normal), 0.0);
     float specular_strength = pow(max(dot(halfway, normal), 0.0), 32);
-    color = vec4(ambient + (diffuse_strength * diffuse + specular_strength * vec3(1.0)), 1.0f);
+    color = vec4(ambient * ao + (diffuse_strength * diffuse + specular_strength * vec3(1.0)), 1.0f);
   }
 
 }

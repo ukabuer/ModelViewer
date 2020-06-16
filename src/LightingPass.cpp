@@ -9,6 +9,15 @@ LightingPass::LightingPass(uint32_t width, uint32_t height,
                            const sg_image &gbuffer_position,
                            const sg_image &gbuffer_normal,
                            const sg_image &gbuffer_albedo) {
+  array<float, 4> fake_ao_values = {1.0f, 1.0f, 1.0f, 1.0f};
+  sg_image_desc fake_ao_image_desc{};
+  fake_ao_image_desc.width = 2;
+  fake_ao_image_desc.height = 2;
+  fake_ao_image_desc.pixel_format = SG_PIXELFORMAT_R32F;
+  fake_ao_image_desc.content.subimage[0][0].ptr = fake_ao_values.data();
+  fake_ao_image_desc.content.subimage[0][0].size = 2 * 2 * sizeof(float);
+  fake_ao_map = sg_make_image(fake_ao_image_desc);
+
   sg_image_desc image_desc{};
   image_desc.render_target = true;
   image_desc.width = width;
@@ -71,4 +80,12 @@ void LightingPass::run(const Eigen::Vector3f &view_pos, const Light &light) {
                     &shading_fs_params, sizeof(shading_fs_params_t));
   sg_draw(0, 4, 1);
   sg_end_pass();
+}
+
+void LightingPass::disable_ssao() {
+  bindings.fs_images[SLOT_ao_map] = fake_ao_map;
+}
+
+void LightingPass::enable_ssao(const sg_image &ao_map) {
+  bindings.fs_images[SLOT_ao_map] = ao_map;
 }
