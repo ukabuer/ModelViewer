@@ -1,4 +1,5 @@
 #pragma once
+#include "Geometry.hpp"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <cstdint>
@@ -6,14 +7,6 @@
 #include <tinygltf/tiny_gltf.h>
 #include <unordered_map>
 #include <vector>
-
-struct Geometry {
-  sg_buffer positions;
-  sg_buffer normals;
-  sg_buffer uvs;
-  sg_buffer indices;
-  uint32_t num;
-};
 
 struct Mesh {
   Geometry geometry{};

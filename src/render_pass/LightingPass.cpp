@@ -1,7 +1,7 @@
 #define SOKOL_GLCORE33
 #include "LightingPass.hpp"
+#include "Geometry.hpp"
 #include "shaders/shading.glsl.h"
-#include <vector>
 
 using namespace std;
 
@@ -50,20 +50,10 @@ LightingPass::LightingPass(uint32_t width, uint32_t height,
   shading_pipeline_desc.blend.color_format = SG_PIXELFORMAT_RGBA32F;
   pipeline = sg_make_pipeline(shading_pipeline_desc);
 
-  const vector<float> screen_quad = {
-      -1.0, -1.0, 0.0, 0.0, 1.0, -1.0, 1.0, 0.0,
-      -1.0, 1.0,  0.0, 1.0, 1.0, 1.0,  1.0, 1.0,
-  };
-  sg_buffer_desc screen_quad_desc = {};
-  screen_quad_desc.type = SG_BUFFERTYPE_VERTEXBUFFER;
-  screen_quad_desc.size = screen_quad.size() * sizeof(float);
-  screen_quad_desc.content = screen_quad.data();
-  auto screen_quad_buffer = sg_make_buffer(screen_quad_desc);
-
   bindings.fs_images[SLOT_g_world_pos] = gbuffer_position;
   bindings.fs_images[SLOT_g_normal] = gbuffer_normal;
   bindings.fs_images[SLOT_g_albedo] = gbuffer_albedo;
-  bindings.vertex_buffers[0] = screen_quad_buffer;
+  bindings.vertex_buffers[0] = Quad::GetInstance();
 }
 
 void LightingPass::run(const Eigen::Vector3f &view_pos, const Light &light) {

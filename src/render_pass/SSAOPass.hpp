@@ -9,7 +9,6 @@ struct SSAOPass {
   sg_pipeline pipeline{};
   sg_bindings bindings{};
   sg_image ao_map{};
-  sg_image fake_ao_map{}; // use this if disable ao
 
   float screen_width = 0.0f;
   float screen_height = 0.0f;

@@ -10,15 +10,15 @@ process_shaders(${CMAKE_CURRENT_SOURCE_DIR}/shaders)
 add_executable(ModelViewer
     main.cpp
     Model.cpp
-    ShadowPass.cpp
-    PostProcessPass.cpp
-    SkyboxPass.cpp
-    LightingPass.cpp
-    GBufferPass.cpp
-    SSAOPass.cpp
+    render_pass/ShadowPass.cpp
+    render_pass/PostProcessPass.cpp
+    render_pass/SkyboxPass.cpp
+    render_pass/LightingPass.cpp
+    render_pass/GBufferPass.cpp
+    render_pass/SSAOPass.cpp
     Camera.cpp
     TrackballController.cpp
-    utils.cpp)
+    utils.cpp render_pass/BlurPass.cpp render_pass/BlurPass.hpp Geometry.cpp Geometry.hpp)
 target_link_libraries(
     ModelViewer
     PRIVATE

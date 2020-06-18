@@ -1,13 +1,14 @@
 #define GLFW_INCLUDE_NONE
 #include "Camera.hpp"
-#include "GBufferPass.hpp"
-#include "LightingPass.hpp"
 #include "Model.hpp"
-#include "PostProcessPass.hpp"
-#include "SSAOPass.hpp"
-#include "ShadowPass.hpp"
-#include "SkyboxPass.hpp"
 #include "TrackballController.hpp"
+#include "render_pass/BlurPass.hpp"
+#include "render_pass/GBufferPass.hpp"
+#include "render_pass/LightingPass.hpp"
+#include "render_pass/PostProcessPass.hpp"
+#include "render_pass/SSAOPass.hpp"
+#include "render_pass/ShadowPass.hpp"
+#include "render_pass/SkyboxPass.hpp"
 #include "utils.hpp"
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
@@ -82,6 +83,7 @@ int main(int argc, const char *argv[]) {
                                     gbuffer_pass.normal, gbuffer_pass.albedo);
   auto skybox_pass = SkyboxPass(lighting_pass.result, gbuffer_pass.depth);
   auto postprocess_pass = PostProccesPass(lighting_pass.result);
+  auto ssao_blur_pass = BlurPass(ssao_pass.ao_map);
 
   Light light{};
   light.direction = {0.0f, -1.0f, 0.0f};
@@ -123,6 +125,7 @@ int main(int argc, const char *argv[]) {
     if (use_ssao) {
       ssao_pass.run(view_matrix, projection_matrix);
       lighting_pass.enable_ssao(ssao_pass.ao_map);
+      ssao_blur_pass.run();
     } else {
       lighting_pass.disable_ssao();
     }
