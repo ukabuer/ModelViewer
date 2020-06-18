@@ -34,10 +34,22 @@ out vec3 g_normal;
 out vec4 g_albedo;
 
 uniform sampler2D albedo;
+uniform sampler2D normal_map;
 
 void main() {
+  vec3 uv_dx = dFdx(vec3(v_uv, 0.0));
+  vec3 uv_dy = dFdy(vec3(v_uv, 0.0));
+  vec3 t_ = (uv_dy.t * dFdx(v_world_pos) - uv_dx.t * dFdy(v_world_pos)) /
+  (uv_dx.s * uv_dy.t - uv_dy.s * uv_dx.t);
+  vec3 T = normalize(t_ - v_normal * dot(v_normal, t_));
+  vec3 B = cross(v_normal, T);
+  mat3 TBN = mat3(T, B, v_normal);
+
   g_world_pos = v_world_pos;
-  g_normal = v_normal;
+  g_normal = texture(normal_map, v_uv).rgb;
+  g_normal = g_normal * 2.0f - 1.0f;
+  g_normal = normalize(TBN * g_normal);
+
   g_albedo.rgb = texture(albedo, v_uv).rgb;
   g_albedo.a = 0.6f;
 }

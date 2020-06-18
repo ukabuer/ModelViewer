@@ -119,6 +119,18 @@ auto Model::Load(const char *filename) -> Model {
   auto shadow_pass_shader_desc = shadow_shader_desc();
   auto shadow_pass_shader = sg_make_shader(shadow_pass_shader_desc);
 
+  static array<uint8_t, 16> fake_normal_map_data = {
+      128, 128, 255, 255, 128, 128, 255, 255,
+      128, 128, 255, 255, 128, 128, 255, 255};
+  sg_image_desc fake_normal_map_desc{};
+  fake_normal_map_desc.width = 2;
+  fake_normal_map_desc.height = 2;
+  fake_normal_map_desc.pixel_format = SG_PIXELFORMAT_RGBA8;
+  fake_normal_map_desc.content.subimage[0][0].ptr = fake_normal_map_data.data();
+  fake_normal_map_desc.content.subimage[0][0].size =
+      fake_normal_map_data.size();
+  auto fake_normal_map = sg_make_image(fake_normal_map_desc);
+
   Model model{};
 
   // setup buffers
@@ -184,6 +196,7 @@ auto Model::Load(const char *filename) -> Model {
         mesh.geometry.num = gltf_accessor.count;
         pipeline_desc.index_type = get_component_type(gltf_accessor);
       }
+
       auto position_pos = primitive.attributes.find("POSITION");
       if (position_pos != primitive.attributes.end()) {
         auto &gltf_accessor = gltf_model.accessors[position_pos->second];
@@ -201,6 +214,7 @@ auto Model::Load(const char *filename) -> Model {
         throw runtime_error("no pos");
       }
       shadow_pipeline_desc = pipeline_desc;
+
       auto normal_pos = primitive.attributes.find("NORMAL");
       if (normal_pos != primitive.attributes.end()) {
         auto &gltf_accessor = gltf_model.accessors[normal_pos->second];
@@ -214,6 +228,7 @@ auto Model::Load(const char *filename) -> Model {
       } else {
         throw runtime_error("no normal");
       }
+
       auto uv_pos = primitive.attributes.find("TEXCOORD_0");
       if (uv_pos != primitive.attributes.end()) {
         auto &gltf_accessor = gltf_model.accessors[uv_pos->second];
@@ -253,6 +268,12 @@ auto Model::Load(const char *filename) -> Model {
         throw runtime_error("no base color texture");
       }
       mesh.albedo = model.textures[pbr_params.baseColorTexture.index];
+
+      if (gltf_material.normalTexture.index == -1) {
+        mesh.normal = fake_normal_map;
+      } else {
+        mesh.normal = model.textures[gltf_material.normalTexture.index];
+      }
 
       string id = to_string(i) + "-" + to_string(j);
       model.meshes.emplace(id, mesh);

@@ -101,6 +101,7 @@ void GBufferPass::run(const Model &model,
               mesh.geometry.normals;
           bindings.vertex_buffers[ATTR_gbuffer_vs_uv] = mesh.geometry.uvs;
           bindings.fs_images[SLOT_albedo] = mesh.albedo;
+          bindings.fs_images[SLOT_normal_map] = mesh.normal;
           sg_apply_bindings(bindings);
 
           gbuffer_vs_params.model = Eigen::Matrix4f::Identity();
