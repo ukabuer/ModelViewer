@@ -29,12 +29,13 @@ in vec3 v_normal;
 in vec2 v_uv;
 in vec3 v_world_pos;
 
-out vec3 g_world_pos;
+out vec4 g_world_pos;
 out vec3 g_normal;
 out vec4 g_albedo;
 
 uniform sampler2D albedo;
 uniform sampler2D normal_map;
+uniform sampler2D metallic_roughness_map;
 
 void main() {
   vec3 uv_dx = dFdx(vec3(v_uv, 0.0));
@@ -45,13 +46,15 @@ void main() {
   vec3 B = cross(v_normal, T);
   mat3 TBN = mat3(T, B, v_normal);
 
-  g_world_pos = v_world_pos;
+  g_world_pos.xyz = v_world_pos;
   g_normal = texture(normal_map, v_uv).rgb;
   g_normal = g_normal * 2.0f - 1.0f;
   g_normal = normalize(TBN * g_normal);
 
+  vec4 metallic_roughness = texture(metallic_roughness_map, v_uv);
   g_albedo.rgb = texture(albedo, v_uv).rgb;
-  g_albedo.a = 0.6f;
+  g_albedo.a = metallic_roughness.g;// roughness
+  g_world_pos.w = metallic_roughness.b;// metallic
 }
   #pragma sokol @end
 

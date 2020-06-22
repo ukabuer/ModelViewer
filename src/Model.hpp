@@ -13,6 +13,7 @@ struct Mesh {
   // Material material {};
   sg_image albedo;
   sg_image normal;
+  sg_image metallic_roughness;
 
   sg_pipeline pipeline{};
   sg_pipeline shadow_pass_pipeline{};

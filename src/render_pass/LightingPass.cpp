@@ -18,18 +18,18 @@ LightingPass::LightingPass(uint32_t width, uint32_t height,
   fake_ao_image_desc.content.subimage[0][0].size = 2 * 2 * sizeof(float);
   fake_ao_map = sg_make_image(fake_ao_image_desc);
 
-  sg_image_desc image_desc{};
-  image_desc.render_target = true;
-  image_desc.width = width;
-  image_desc.height = height;
-  image_desc.min_filter = SG_FILTER_LINEAR;
-  image_desc.mag_filter = SG_FILTER_LINEAR;
-  image_desc.wrap_u = SG_WRAP_CLAMP_TO_EDGE;
-  image_desc.wrap_v = SG_WRAP_CLAMP_TO_EDGE;
-  image_desc.pixel_format = SG_PIXELFORMAT_RGBA32F;
+  sg_image_desc result_image_desc{};
+  result_image_desc.render_target = true;
+  result_image_desc.width = width;
+  result_image_desc.height = height;
+  result_image_desc.min_filter = SG_FILTER_LINEAR;
+  result_image_desc.mag_filter = SG_FILTER_LINEAR;
+  result_image_desc.wrap_u = SG_WRAP_CLAMP_TO_EDGE;
+  result_image_desc.wrap_v = SG_WRAP_CLAMP_TO_EDGE;
+  result_image_desc.pixel_format = SG_PIXELFORMAT_RGBA32F;
 
   sg_pass_desc shading_pass_desc{};
-  result = sg_make_image(image_desc);
+  result = sg_make_image(result_image_desc);
   shading_pass_desc.color_attachments[0].image = result;
   pass = sg_make_pass(shading_pass_desc);
 
@@ -47,7 +47,7 @@ LightingPass::LightingPass(uint32_t width, uint32_t height,
   shading_pipeline_desc.primitive_type = SG_PRIMITIVETYPE_TRIANGLE_STRIP;
   shading_pipeline_desc.blend.depth_format = SG_PIXELFORMAT_NONE;
   shading_pipeline_desc.blend.color_attachment_count = 1;
-  shading_pipeline_desc.blend.color_format = SG_PIXELFORMAT_RGBA32F;
+  shading_pipeline_desc.blend.color_format = result_image_desc.pixel_format;
   pipeline = sg_make_pipeline(shading_pipeline_desc);
 
   bindings.fs_images[SLOT_g_world_pos] = gbuffer_position;

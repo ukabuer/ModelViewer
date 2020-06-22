@@ -13,12 +13,16 @@ void main() {
   #pragma sokol @fs postprocess_fs
 in vec2 v_uv;
 
-out vec4 color;
+out vec4 FragColor;
 
 uniform sampler2D rendered;
 
 void main() {
-  color = texture(rendered, v_uv);
+  vec3 color = texture(rendered, v_uv).rgb;
+  //  color = color / (color + vec3(1.0f));
+  //  color = pow(color, vec3(1.0f / 2.2f));
+
+  FragColor = vec4(color, 1.0f);
 }
   #pragma sokol @end
 

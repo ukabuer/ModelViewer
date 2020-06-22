@@ -131,6 +131,18 @@ auto Model::Load(const char *filename) -> Model {
       fake_normal_map_data.size();
   auto fake_normal_map = sg_make_image(fake_normal_map_desc);
 
+  static array<uint8_t, 16> fake_metallic_roughness_data = {
+      0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0};
+  sg_image_desc fake_metallic_roughness_desc{};
+  fake_metallic_roughness_desc.width = 2;
+  fake_metallic_roughness_desc.height = 2;
+  fake_metallic_roughness_desc.pixel_format = SG_PIXELFORMAT_RGBA8;
+  fake_metallic_roughness_desc.content.subimage[0][0].ptr =
+      fake_metallic_roughness_data.data();
+  fake_metallic_roughness_desc.content.subimage[0][0].size =
+      fake_metallic_roughness_data.size();
+  auto fake_metallic_roughness = sg_make_image(fake_metallic_roughness_desc);
+
   Model model{};
 
   // setup buffers
@@ -268,6 +280,13 @@ auto Model::Load(const char *filename) -> Model {
         throw runtime_error("no base color texture");
       }
       mesh.albedo = model.textures[pbr_params.baseColorTexture.index];
+
+      if (pbr_params.metallicRoughnessTexture.index == -1) {
+        mesh.metallic_roughness = fake_metallic_roughness;
+      } else {
+        mesh.metallic_roughness =
+            model.textures[pbr_params.metallicRoughnessTexture.index];
+      }
 
       if (gltf_material.normalTexture.index == -1) {
         mesh.normal = fake_normal_map;
