@@ -8,7 +8,7 @@ void main() {
   v_uv = uv;
   gl_Position = vec4(position, 0.0f, 1.0f);
 }
-  #pragma sokol @end
+#pragma sokol @end
 
   #pragma sokol @fs blur_fs
 in vec2 v_uv;

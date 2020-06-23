@@ -1,5 +1,5 @@
 #pragma once
-#include "ShadowPass.hpp"
+#include "Light.hpp"
 #include <Eigen/Core>
 #include <sokol_gfx.h>
 

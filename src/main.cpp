@@ -16,6 +16,7 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <iostream>
+#include <portable-file-dialogs.h>
 #define SOKOL_GLCORE33
 #define SOKOL_IMPL
 #include <sokol_gfx.h>
@@ -24,7 +25,7 @@ using namespace std;
 
 void setup_event_callback(GLFWwindow *window, TrackballController &controller);
 
-int main(int argc, const char *argv[]) {
+int main() {
   constexpr int32_t width = 1280;
   constexpr int32_t height = 720;
 
@@ -58,10 +59,7 @@ int main(int argc, const char *argv[]) {
   sg_setup(&app_desc);
 
   // load scene
-  auto model = Model::Load(argv[1]);
-  auto scene = model.gltf.scenes[model.gltf.defaultScene];
-  auto bound = get_gltf_scene_bound(model.gltf, model.gltf.defaultScene);
-  auto radius = abs((bound.max() - bound.min()).norm() / 2.0f);
+  vector<Model> models;
 
   // setup camera
   Camera camera{};
@@ -70,12 +68,9 @@ int main(int argc, const char *argv[]) {
                        0.1f, 100.0f);
 
   TrackballController controller{800, 600};
-  controller.target = (bound.min() + bound.max()) / 2.0f;
-  controller.position = controller.target;
-  controller.position[2] += radius * 1.2;
+  controller.position[2] += 5.0f;
   setup_event_callback(window, controller);
 
-  ShadowPass shadow_pass{};
   auto gbuffer_pass = GBufferPass(width, height);
   auto ssao_pass =
       SSAOPass(width, height, gbuffer_pass.position, gbuffer_pass.normal);
@@ -100,11 +95,22 @@ int main(int argc, const char *argv[]) {
     ImGui::NewFrame();
 
     ImGui::Begin("Parameters");
-    ImGui::Text("Directional Light Position");
+    ImGui::Text("Directional Light Direction");
     ImGui::SliderFloat("x", &(light.direction.data()[0]), -3.0f, 3.0f);
     ImGui::SliderFloat("y", &(light.direction.data()[1]), -3.0f, 3.0f);
     ImGui::SliderFloat("z", &(light.direction.data()[2]), -3.0f, 3.0f);
     ImGui::Checkbox("Use SSAO", &use_ssao);
+    if (ImGui::Button("Select model...")) {
+      auto result = pfd::open_file(
+          "Choose models to read", "",
+          {"GLTF Models (.gltf .glb)", "*.gltf *.glb", "All Files", "*"},
+          pfd::opt::none);
+      ;
+      std::cout << "Selected files:";
+      for (const auto &filepath : result.result()) {
+        models.emplace_back(Model::Load(filepath.c_str()));
+      }
+    }
 
     ImGui::Checkbox("Demo Window", &show_demo_window);
     ImGui::Text("Average %.3f ms/frame (%.1f FPS)",
@@ -120,8 +126,10 @@ int main(int argc, const char *argv[]) {
     auto &projection_matrix = camera.getCullingProjectionMatrix();
     const Eigen::Matrix4f camera_matrix = projection_matrix * view_matrix;
 
-    shadow_pass.run(model, light);
-    gbuffer_pass.run(model, camera_matrix);
+    for (auto &model : models) {
+      light.shadow_pass->run(model, light);
+      gbuffer_pass.run(model, camera_matrix);
+    }
     if (use_ssao) {
       ssao_pass.run(view_matrix, projection_matrix);
       lighting_pass.enable_ssao(ssao_pass.ao_map);

@@ -47,7 +47,6 @@ void ShadowPass::run(const Model &model, Light &light) {
   const Eigen::Matrix4f view_matrix = camera.getViewMatrix().inverse();
   auto &projection_matrix = camera.getCullingProjectionMatrix();
 
-  light.shadow_map = shadow_map;
   light.matrix = projection_matrix * view_matrix;
 
   shadow_vs_params_t shadow_vs_params{};

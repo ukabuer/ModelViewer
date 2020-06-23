@@ -1,8 +1,14 @@
 #pragma once
+#include <Eigen/Core>
+#include <memory>
 #include <sokol_gfx.h>
+
+struct ShadowPass;
 
 struct Light {
   Eigen::Vector3f direction;
   Eigen::Matrix4f matrix;
-  sg_image shadow_map;
+  std::unique_ptr<ShadowPass> shadow_pass;
+
+  Light();
 };

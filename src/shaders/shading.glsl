@@ -104,6 +104,7 @@ void main() {
   if (shadow > 0.0) {
     color = vec4(ambient * ao, 1.0f);
   } else {
+    // TODO: for each light
     vec3 Lo = vec3(0.0);
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo.rgb, metallic);

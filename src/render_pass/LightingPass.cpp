@@ -2,6 +2,7 @@
 #include "LightingPass.hpp"
 #include "Geometry.hpp"
 #include "shaders/shading.glsl.h"
+#include <render_pass/ShadowPass.hpp>
 
 using namespace std;
 
@@ -61,7 +62,7 @@ void LightingPass::run(const Eigen::Vector3f &view_pos, const Light &light) {
   shading_fs_params.view_pos = view_pos;
   shading_fs_params.light_direction = light.direction;
   shading_fs_params.light_matrix = light.matrix;
-  bindings.fs_images[SLOT_shadow_map] = light.shadow_map;
+  bindings.fs_images[SLOT_shadow_map] = light.shadow_pass->shadow_map;
 
   sg_begin_pass(pass, pass_action);
   sg_apply_pipeline(pipeline);
