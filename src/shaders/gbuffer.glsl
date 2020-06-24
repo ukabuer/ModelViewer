@@ -37,6 +37,11 @@ uniform sampler2D albedo;
 uniform sampler2D normal_map;
 uniform sampler2D metallic_roughness_map;
 
+vec3 srgb_to_linear(vec3 srgb_color) {
+  const float gamma = 2.2f;
+  return pow(srgb_color, vec3(gamma));
+}
+
 void main() {
   vec3 uv_dx = dFdx(vec3(v_uv, 0.0));
   vec3 uv_dy = dFdy(vec3(v_uv, 0.0));
@@ -52,7 +57,7 @@ void main() {
   g_normal = normalize(TBN * g_normal);
 
   vec4 metallic_roughness = texture(metallic_roughness_map, v_uv);
-  g_albedo.rgb = texture(albedo, v_uv).rgb;
+  g_albedo.rgb = srgb_to_linear(texture(albedo, v_uv).rgb);
   g_albedo.a = metallic_roughness.g;// roughness
   g_world_pos.w = metallic_roughness.b;// metallic
 }

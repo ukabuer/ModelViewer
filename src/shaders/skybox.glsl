@@ -26,8 +26,13 @@ out vec4 color;
 
 uniform samplerCube skybox_cube;
 
+vec3 srgb_to_linear(vec3 srgb_color) {
+  const float gamma = 2.2f;
+  return pow(srgb_color, vec3(gamma));
+}
+
 void main() {
-  color = texture(skybox_cube, v_world_pos);
+  color = vec4(srgb_to_linear(texture(skybox_cube, v_world_pos).rgb), 1.0f);
 }
   #pragma sokol @end
 

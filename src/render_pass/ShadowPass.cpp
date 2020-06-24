@@ -38,11 +38,11 @@ ShadowPass::ShadowPass() {
   pass_action.depth.val = 1.0f;
 
   camera.setProjection(Camera::Projection::Orthographic, -3.0f, 3.0f, 3.0f,
-                       -3.0f, 1.0f, 10.0f);
+                       -3.0f, 1.0f, 50.0f);
 }
 
 void ShadowPass::run(const Model &model, Light &light) {
-  camera.lookAt(-light.direction * 5.0f, Eigen::Vector3f{0.0f, 0.0f, 0.0f},
+  camera.lookAt(-light.direction * 10.0f, Eigen::Vector3f{0.0f, 0.0f, 0.0f},
                 Eigen::Vector3f{0.0f, 0.0f, 1.0f});
   const Eigen::Matrix4f view_matrix = camera.getViewMatrix().inverse();
   auto &projection_matrix = camera.getCullingProjectionMatrix();
