@@ -1,9 +1,12 @@
+#include <Eigen/Core>
 #define SOKOL_GLCORE33
-#include "SkyboxPass.hpp"
 #include "Camera.hpp"
+#include "Geometry.hpp"
+#include "SkyboxPass.hpp"
+#include "shaders/irradiance_map.glsl.h"
+#include "shaders/prefilter.glsl.h"
 #include "shaders/rect_to_cube.glsl.h"
 #include "shaders/skybox.glsl.h"
-#include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <string>
 #include <tinygltf/stb_image.h>
@@ -11,6 +14,70 @@
 
 using namespace std;
 using namespace Eigen;
+
+static sg_image irradiance_convolution(const sg_image &environment_map) {
+  sg_image_desc irradiance_map_desc{};
+  irradiance_map_desc.type = SG_IMAGETYPE_CUBE;
+  irradiance_map_desc.render_target = true;
+  irradiance_map_desc.width = 512;
+  irradiance_map_desc.height = 512;
+  irradiance_map_desc.pixel_format = SG_PIXELFORMAT_RGBA32F;
+  irradiance_map_desc.min_filter = irradiance_map_desc.mag_filter =
+      SG_FILTER_LINEAR;
+  auto irradiance_map = sg_make_image(irradiance_map_desc);
+
+  sg_pass_desc pass_desc{};
+  pass_desc.color_attachments[0].image = irradiance_map;
+
+  sg_pass_action pass_action{};
+  pass_action.colors[0].action = SG_ACTION_CLEAR;
+
+  auto &cube = Cube::GetInstance();
+  sg_pipeline_desc pipeline_desc{};
+  pipeline_desc.shader = sg_make_shader(irradiance_map_shader_desc());
+  pipeline_desc.layout = cube.layout;
+  pipeline_desc.index_type = cube.index_type;
+  pipeline_desc.blend.color_format = irradiance_map_desc.pixel_format;
+  pipeline_desc.blend.depth_format = SG_PIXELFORMAT_NONE;
+  auto pipeline = sg_make_pipeline(pipeline_desc);
+
+  sg_bindings bindings{};
+  bindings.fs_images[SLOT_environment] = environment_map;
+  bindings.vertex_buffers[0] = cube.buffer;
+  bindings.index_buffer = cube.index_buffer;
+
+  Camera camera{};
+  camera.setProjection(90.0f, 1.0f, 0.1f, 10.0f);
+  Vector3f targets[] = {
+      Vector3f(1.0f, 0.0f, 0.0f), Vector3f(-1.0f, 0.0f, 0.0f),
+      Vector3f(0.0f, 1.0f, 0.0f), Vector3f(0.0f, -1.0f, 0.0f),
+      Vector3f(0.0f, 0.0f, 1.0f), Vector3f(0.0f, 0.0f, -1.0f)};
+  Vector3f ups[] = {Vector3f(0.0f, -1.0f, 0.0f), Vector3f(0.0f, -1.0f, 0.0f),
+                    Vector3f(0.0f, 0.0f, 1.0f),  Vector3f(0.0f, 0.0f, -1.0f),
+                    Vector3f(0.0f, -1.0f, 0.0f), Vector3f(0.0f, -1.0f, 0.0f)};
+
+  auto projection_matrix = camera.getCullingProjectionMatrix();
+  irradiance_map_vs_params_t vs_params{};
+  for (int i = 0; i < 6; i++) {
+    pass_desc.color_attachments[0].face = SG_CUBEFACE_POS_X + i;
+    camera.lookAt(Vector3f::Zero(), targets[i], ups[i]);
+    auto view_matrix = camera.getViewMatrix().inverse();
+    vs_params.camera = projection_matrix * view_matrix;
+    auto pass = sg_make_pass(pass_desc);
+
+    sg_begin_pass(pass, pass_action);
+    sg_apply_pipeline(pipeline);
+    sg_apply_bindings(bindings);
+    sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_irradiance_map_vs_params,
+                      &vs_params, sizeof(irradiance_map_vs_params_t));
+    sg_draw(0, 36, 1);
+    sg_end_pass();
+
+    sg_destroy_pass(pass);
+  }
+
+  return irradiance_map;
+}
 
 static sg_image rect_image_to_cube_map(const char *filepath,
                                        sg_buffer cube_buffer,
@@ -177,61 +244,16 @@ static sg_image prefilter_environment_map(const sg_image &environment_map) {
 }
 
 SkyboxPass::SkyboxPass(const sg_image &color, const sg_image &depth) {
-  // clang-format off
-  vector<float> skybox_positions = {
-      // top
-      -1.0f,  1.0f, -1.0f,
-      -1.0f,  1.0f,  1.0f,
-      1.0f,  1.0f,  1.0f,
-      1.0f,  1.0f, -1.0f,
-      // bottom
-      -1.0f, -1.0f,  1.0f,
-      -1.0f, -1.0f, -1.0f,
-      1.0f, -1.0f, -1.0f,
-      1.0f, -1.0f,  1.0f,
-      // left
-      -1.0f,  1.0f, -1.0f,
-      -1.0f, -1.0f, -1.0f,
-      -1.0f, -1.0f,  1.0f,
-      -1.0f,  1.0f,  1.0f,
-      // right
-      1.0f,  1.0f,  1.0f,
-      1.0f, -1.0f,  1.0f,
-      1.0f, -1.0f, -1.0f,
-      1.0f,  1.0f, -1.0f,
-      // front
-      -1.0f,  1.0f,  1.0f,
-      -1.0f, -1.0f,  1.0f,
-      1.0f,  -1.0f,  1.0f,
-      1.0f,   1.0f,  1.0f,
-      // back
-      1.0f,  1.0f, -1.0f,
-      1.0f, -1.0f, -1.0f,
-      -1.0f, -1.0f, -1.0f,
-      -1.0f,  1.0f, -1.0f,
-  };
-  // clang-format on
-  vector<uint16_t> skybox_indices = {
-      0,  2,  1,  0,  3,  2,  4,  6,  5,  4,  7,  6,  8,  10, 9,  8,  11, 10,
-      12, 14, 13, 12, 15, 14, 16, 18, 17, 16, 19, 18, 20, 22, 21, 20, 23, 22,
-  };
-  sg_buffer_desc skybox_vertices_buffer_desc{};
-  skybox_vertices_buffer_desc.content = skybox_positions.data();
-  skybox_vertices_buffer_desc.size = skybox_positions.size() * sizeof(float);
-  auto cube_position_buffer = sg_make_buffer(skybox_vertices_buffer_desc);
-
-  sg_buffer_desc skybox_indices_buffer_desc{};
-  skybox_indices_buffer_desc.type = SG_BUFFERTYPE_INDEXBUFFER;
-  skybox_indices_buffer_desc.content = skybox_indices.data();
-  skybox_indices_buffer_desc.size = skybox_indices.size() * sizeof(uint16_t);
-  auto cube_index_buffer = sg_make_buffer(skybox_indices_buffer_desc);
+  auto &cube = Cube::GetInstance();
 
   environment = rect_image_to_cube_map("assets/textures/Mans_Outside_2k.hdr",
-                                       cube_position_buffer, cube_index_buffer);
+                                       cube.buffer, cube.index_buffer);
+  irradiance_map = irradiance_convolution(environment);
+  prefilter_map = prefilter_environment_map(environment);
 
-  bindings.vertex_buffers[0] = cube_position_buffer;
-  bindings.index_buffer = cube_index_buffer;
-  bindings.fs_images[SLOT_skybox_cube] = environment;
+  bindings.vertex_buffers[0] = cube.buffer;
+  bindings.index_buffer = cube.index_buffer;
+  bindings.fs_images[SLOT_skybox_cube] = prefilter_map;
 
   sg_pipeline_desc pipeline_desc{};
   pipeline_desc.shader = sg_make_shader(skybox_shader_desc());
@@ -239,7 +261,6 @@ SkyboxPass::SkyboxPass(const sg_image &color, const sg_image &depth) {
   pipeline_desc.index_type = SG_INDEXTYPE_UINT16;
   pipeline_desc.layout.attrs[ATTR_skybox_vs_position].format =
       SG_VERTEXFORMAT_FLOAT3;
-  pipeline_desc.layout.attrs[ATTR_skybox_vs_position].buffer_index = 0;
   pipeline_desc.blend.depth_format = SG_PIXELFORMAT_DEPTH;
   pipeline_desc.blend.color_format = SG_PIXELFORMAT_RGBA32F;
   pipeline_desc.depth_stencil.depth_compare_func = SG_COMPAREFUNC_LESS_EQUAL;
