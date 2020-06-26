@@ -22,3 +22,18 @@ private:
 
   Quad();
 };
+
+class Cube {
+public:
+  static auto GetInstance() -> const Cube &;
+
+  Cube(Cube const &) = delete;
+  void operator=(Cube const &) = delete;
+
+  sg_buffer buffer{};
+  sg_buffer index_buffer{};
+  sg_index_type index_type{};
+  sg_layout_desc layout{};
+
+  Cube();
+};

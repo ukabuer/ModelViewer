@@ -79,6 +79,8 @@ int main() {
   auto postprocess_pass = PostProccesPass(lighting_pass.result);
   auto ssao_blur_pass = BlurPass(ssao_pass.ao_map);
 
+  lighting_pass.set_irradiance_map(skybox_pass.irradiance_map);
+
   Light light{};
   light.direction = {0.0f, -1.0f, 0.0f};
   bool show_demo_window = false;

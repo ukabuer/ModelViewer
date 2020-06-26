@@ -57,6 +57,10 @@ LightingPass::LightingPass(uint32_t width, uint32_t height,
   bindings.vertex_buffers[0] = Quad::GetInstance();
 }
 
+void LightingPass::set_irradiance_map(const sg_image &irradiance_map) {
+  bindings.fs_images[SLOT_irradiance_map] = irradiance_map;
+}
+
 void LightingPass::run(const Eigen::Vector3f &view_pos, const Light &light) {
   shading_fs_params_t shading_fs_params{};
   shading_fs_params.view_pos = view_pos;

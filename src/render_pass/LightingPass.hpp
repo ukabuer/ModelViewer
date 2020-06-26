@@ -15,6 +15,7 @@ struct LightingPass {
                const sg_image &gbuffer_position, const sg_image &gbuffer_normal,
                const sg_image &gbuffer_albedo);
   void run(const Eigen::Vector3f &view_pos, const Light &light);
+  void set_irradiance_map(const sg_image &irradiance_map);
 
   void disable_ssao();
   void enable_ssao(const sg_image &ao_map);

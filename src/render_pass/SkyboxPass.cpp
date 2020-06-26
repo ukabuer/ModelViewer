@@ -100,6 +100,82 @@ static sg_image rect_image_to_cube_map(const char *filepath,
   return output;
 }
 
+static sg_image prefilter_environment_map(const sg_image &environment_map) {
+  sg_image_desc prefilter_map_desc{};
+  prefilter_map_desc.type = SG_IMAGETYPE_CUBE;
+  prefilter_map_desc.render_target = true;
+  prefilter_map_desc.width = 128;
+  prefilter_map_desc.height = 128;
+  prefilter_map_desc.pixel_format = SG_PIXELFORMAT_RGBA32F;
+  prefilter_map_desc.min_filter = SG_FILTER_LINEAR_MIPMAP_LINEAR;
+  prefilter_map_desc.mag_filter = SG_FILTER_LINEAR;
+  prefilter_map_desc.num_mipmaps = 5;
+  auto prefilter_map = sg_make_image(prefilter_map_desc);
+
+  auto &cube = Cube::GetInstance();
+  sg_bindings bindings{};
+  bindings.vertex_buffers[0] = cube.buffer;
+  bindings.index_buffer = cube.index_buffer;
+  bindings.fs_images[SLOT_environment_map] = environment_map;
+
+  sg_pass_action pass_action{};
+  pass_action.colors[0].action = SG_ACTION_CLEAR;
+
+  sg_pipeline_desc pipeline_desc{};
+  pipeline_desc.shader = sg_make_shader(prefilter_shader_desc());
+  pipeline_desc.layout.attrs[ATTR_prefilter_vs_position].format =
+      SG_VERTEXFORMAT_FLOAT3;
+  pipeline_desc.layout.attrs[ATTR_prefilter_vs_position].buffer_index = 0;
+  pipeline_desc.blend.color_format = prefilter_map_desc.pixel_format;
+  pipeline_desc.blend.depth_format = SG_PIXELFORMAT_NONE;
+  pipeline_desc.index_type = cube.index_type;
+  auto pipeline = sg_make_pipeline(pipeline_desc);
+
+  Camera camera{};
+  camera.setProjection(90.0f, 1.0f, 0.1f, 10.0f);
+  Vector3f targets[] = {
+      Vector3f(1.0f, 0.0f, 0.0f), Vector3f(-1.0f, 0.0f, 0.0f),
+      Vector3f(0.0f, 1.0f, 0.0f), Vector3f(0.0f, -1.0f, 0.0f),
+      Vector3f(0.0f, 0.0f, 1.0f), Vector3f(0.0f, 0.0f, -1.0f)};
+  Vector3f ups[] = {Vector3f(0.0f, -1.0f, 0.0f), Vector3f(0.0f, -1.0f, 0.0f),
+                    Vector3f(0.0f, 0.0f, 1.0f),  Vector3f(0.0f, 0.0f, -1.0f),
+                    Vector3f(0.0f, -1.0f, 0.0f), Vector3f(0.0f, -1.0f, 0.0f)};
+
+  prefilter_vs_params_t vs_params{};
+  prefilter_fs_params_t fs_params{};
+  sg_pass_desc pass_desc{};
+  const auto &projection_matrix = camera.getCullingProjectionMatrix();
+  pass_desc.color_attachments[0].image = prefilter_map;
+  for (int mip = 0; mip < prefilter_map_desc.num_mipmaps; mip++) {
+    pass_desc.color_attachments[0].mip_level = mip;
+    fs_params.roughness =
+        static_cast<float>(mip) /
+        static_cast<float>(prefilter_map_desc.num_mipmaps - 1);
+    for (int i = 0; i < 6; i++) {
+      pass_desc.color_attachments[0].face = SG_CUBEFACE_POS_X + i;
+      auto pass = sg_make_pass(pass_desc);
+
+      camera.lookAt(Vector3f::Zero(), targets[i], ups[i]);
+      auto view_matrix = camera.getViewMatrix().inverse();
+
+      vs_params.camera = projection_matrix * view_matrix;
+      sg_begin_pass(pass, pass_action);
+      sg_apply_pipeline(pipeline);
+      sg_apply_bindings(bindings);
+      sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_prefilter_vs_params, &vs_params,
+                        sizeof(vs_params));
+      sg_apply_uniforms(SG_SHADERSTAGE_FS, SLOT_prefilter_fs_params, &fs_params,
+                        sizeof(fs_params));
+      sg_draw(0, 36, 1);
+      sg_end_pass();
+
+      sg_destroy_pass(pass);
+    }
+  }
+
+  return prefilter_map;
+}
+
 SkyboxPass::SkyboxPass(const sg_image &color, const sg_image &depth) {
   // clang-format off
   vector<float> skybox_positions = {

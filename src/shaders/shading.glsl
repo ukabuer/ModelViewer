@@ -30,6 +30,7 @@ uniform sampler2D g_normal;
 uniform sampler2D g_albedo;
 uniform sampler2D shadow_map;
 uniform sampler2D ao_map;
+uniform samplerCube irradiance_map;
 
 const float PI = 3.14159265359;
 
@@ -76,6 +77,10 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
   return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
+vec3 fresnel_schlick_roughness(float cos_theta, vec3 F0, float roughness) {
+  return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cos_theta, 5.0);
+}
+
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
   float NdotV = max(dot(N, V), 0.0);
   float NdotL = max(dot(N, L), 0.0);
@@ -83,6 +88,18 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
   float ggx1  = GeometrySchlickGGX(NdotL, roughness);
 
   return ggx1 * ggx2;
+}
+
+vec3 indirect_lighting(vec3 normal, vec3 view_dir, vec3 F0, float roughness, vec3 albedo) {
+  vec3 F = fresnel_schlick_roughness(max(dot(normal, view_dir), 0.0), F0, roughness);
+  vec3 kS = F;
+  vec3 kD = 1.0 - kS;
+
+  vec3 irradiance = texture(irradiance_map, normal).rgb;
+  vec3 diffuse = irradiance * albedo;
+  vec3 ambient = kD * diffuse;
+
+  return ambient;
 }
 
 void main() {
@@ -95,15 +112,19 @@ void main() {
   float metallic = world_pos.w;
 
   color = vec4(vec3(0.0f), 1.0f);
+  vec3 F0 = vec3(0.04);
+  F0 = mix(F0, albedo.rgb, metallic);
 
-  // indirect lighting
-  // diffuse + specular
-  color.rgb += diffuse * 0.1f * ao;
   color.rgb = vec3(0.0);
 
-  // direct lighting
   vec3 view_dir = normalize(view_pos - world_pos.xyz);
   vec3 light_dir = normalize(-light_direction);
+
+  vec3 ambient = indirect_lighting(normal, view_dir, F0, roughness, albedo.rgb);
+  color.rgb += ambient * ao;
+
+  // direct lighting
+  // TODO: for each light
   float bias = max(0.05 * (1.0 - dot(normal, light_dir)), 0.005);
   float shadow = calculate_shadow(world_pos.xyz, bias);
 
@@ -111,11 +132,7 @@ void main() {
     return;
   }
 
-  // TODO: for each light
   vec3 Lo = vec3(0.0);
-  vec3 F0 = vec3(0.04);
-  F0 = mix(F0, albedo.rgb, metallic);
-
   vec3 radiance  = vec3(1.0);
   vec3 halfway = normalize(view_dir + light_dir);
 
