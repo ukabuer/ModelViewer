@@ -35,6 +35,7 @@ SSAOPass::SSAOPass(uint32_t width, uint32_t height, const sg_image &position,
   ao_image_desc.width = width;
   ao_image_desc.height = height;
   ao_image_desc.pixel_format = SG_PIXELFORMAT_R32F;
+  ao_image_desc.min_filter = ao_image_desc.mag_filter = SG_FILTER_LINEAR;
   ao_map = sg_make_image(ao_image_desc);
 
   sg_pass_desc pass_desc{};

@@ -94,39 +94,45 @@ void main() {
   float roughness = albedo.a;
   float metallic = world_pos.w;
 
+  color = vec4(vec3(0.0f), 1.0f);
+
+  // indirect lighting
+  // diffuse + specular
+  color.rgb += diffuse * 0.1f * ao;
+  color.rgb = vec3(0.0);
+
+  // direct lighting
   vec3 view_dir = normalize(view_pos - world_pos.xyz);
   vec3 light_dir = normalize(-light_direction);
-
   float bias = max(0.05 * (1.0 - dot(normal, light_dir)), 0.005);
   float shadow = calculate_shadow(world_pos.xyz, bias);
 
-  vec3 ambient = diffuse * 0.4f;
   if (shadow > 0.0) {
-    color = vec4(ambient * ao, 1.0f);
-  } else {
-    // TODO: for each light
-    vec3 Lo = vec3(0.0);
-    vec3 F0 = vec3(0.04);
-    F0 = mix(F0, albedo.rgb, metallic);
-
-    vec3 radiance  = vec3(1.0);
-    vec3 halfway = normalize(view_dir + light_dir);
-
-    float NDF = DistributionGGX(normal, halfway, roughness);
-    vec3 F = fresnelSchlick(max(dot(halfway, view_dir), 0.0), F0);
-    float G = GeometrySmith(normal, halfway, light_dir, roughness);
-    vec3 numerator = NDF * G * F;
-    float denominator = 4.0 * max(dot(normal, view_dir), 0.0) * max(dot(normal, light_dir), 0.0);
-    vec3 specular = numerator / max(denominator, 0.001);
-    vec3 kS = F;
-    vec3 kD = vec3(1.0) - kS;
-    kD *= 1.0 - metallic;
-
-    float NdotL = max(dot(normal, light_dir), 0.0);
-    Lo += (kD * albedo.rgb / PI + specular) * radiance * NdotL;
-
-    color = vec4(ambient * ao + Lo, 1.0f);
+    return;
   }
+
+  // TODO: for each light
+  vec3 Lo = vec3(0.0);
+  vec3 F0 = vec3(0.04);
+  F0 = mix(F0, albedo.rgb, metallic);
+
+  vec3 radiance  = vec3(1.0);
+  vec3 halfway = normalize(view_dir + light_dir);
+
+  float NDF = DistributionGGX(normal, halfway, roughness);
+  vec3 F = fresnelSchlick(max(dot(halfway, view_dir), 0.0), F0);
+  float G = GeometrySmith(normal, halfway, light_dir, roughness);
+  vec3 numerator = NDF * G * F;
+  float denominator = 4.0 * max(dot(normal, view_dir), 0.0) * max(dot(normal, light_dir), 0.0);
+  vec3 specular = numerator / max(denominator, 0.001);
+  vec3 kS = F;
+  vec3 kD = vec3(1.0) - kS;
+  kD *= 1.0 - metallic;
+
+  float NdotL = max(dot(normal, light_dir), 0.0);
+  Lo += (kD * albedo.rgb / PI + specular) * radiance * NdotL;
+
+  color.rgb += Lo;
 }
   #pragma sokol @end
 

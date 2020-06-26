@@ -19,6 +19,7 @@ ShadowPass::ShadowPass() {
   shadow_map_desc.pixel_format = SG_PIXELFORMAT_RGBA8;
   shadow_map_desc.wrap_u = SG_WRAP_CLAMP_TO_EDGE;
   shadow_map_desc.wrap_v = SG_WRAP_CLAMP_TO_EDGE;
+  shadow_map_desc.min_filter = shadow_map_desc.mag_filter = SG_FILTER_LINEAR;
   shadow_map = sg_make_image(shadow_map_desc);
 
   sg_image_desc depth_desc = shadow_map_desc;

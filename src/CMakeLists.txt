@@ -20,7 +20,9 @@ add_executable(ModelViewer
     Camera.cpp
     Light.cpp
     TrackballController.cpp
-    utils.cpp render_pass/BlurPass.cpp Geometry.cpp Geometry.hpp)
+    utils.cpp
+    render_pass/BlurPass.cpp
+    Geometry.cpp)
 target_link_libraries(
     ModelViewer
     PRIVATE

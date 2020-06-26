@@ -32,7 +32,7 @@ vec3 srgb_to_linear(vec3 srgb_color) {
 }
 
 void main() {
-  color = vec4(srgb_to_linear(texture(skybox_cube, v_world_pos).rgb), 1.0f);
+  color = vec4(texture(skybox_cube, v_world_pos).rgb, 1.0f);
 }
   #pragma sokol @end
 

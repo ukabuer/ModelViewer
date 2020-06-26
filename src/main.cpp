@@ -9,7 +9,6 @@
 #include "render_pass/SSAOPass.hpp"
 #include "render_pass/ShadowPass.hpp"
 #include "render_pass/SkyboxPass.hpp"
-#include "utils.hpp"
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 #include <imgui.h>
@@ -105,8 +104,6 @@ int main() {
           "Choose models to read", "",
           {"GLTF Models (.gltf .glb)", "*.gltf *.glb", "All Files", "*"},
           pfd::opt::none);
-      ;
-      std::cout << "Selected files:";
       for (const auto &filepath : result.result()) {
         models.emplace_back(Model::Load(filepath.c_str()));
       }
