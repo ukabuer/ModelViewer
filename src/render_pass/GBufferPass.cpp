@@ -23,16 +23,18 @@ GBufferPass::GBufferPass(uint32_t width, uint32_t height) {
   position = sg_make_image(image_desc);
   normal = sg_make_image(image_desc);
   albedo = sg_make_image(image_desc);
+  emissive = sg_make_image(image_desc);
   depth = sg_make_image(depth_desc);
 
   sg_pass_desc gbuffer_pass_desc{};
   gbuffer_pass_desc.color_attachments[0].image = position;
   gbuffer_pass_desc.color_attachments[1].image = normal;
   gbuffer_pass_desc.color_attachments[2].image = albedo;
+  gbuffer_pass_desc.color_attachments[3].image = emissive;
   gbuffer_pass_desc.depth_stencil_attachment.image = depth;
   pass = sg_make_pass(gbuffer_pass_desc);
 
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 4; i++) {
     pass_action.colors[i].action = SG_ACTION_CLEAR;
   }
   pass_action.depth.action = SG_ACTION_CLEAR;
@@ -104,6 +106,7 @@ void GBufferPass::run(const Model &model,
           bindings.fs_images[SLOT_normal_map] = mesh.normal;
           bindings.fs_images[SLOT_metallic_roughness_map] =
               mesh.metallic_roughness;
+          bindings.fs_images[SLOT_emissive_map] = mesh.emissive;
           sg_apply_bindings(bindings);
 
           gbuffer_vs_params.model = Eigen::Matrix4f::Identity();

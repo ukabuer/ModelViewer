@@ -10,7 +10,8 @@ using namespace std;
 LightingPass::LightingPass(uint32_t width, uint32_t height,
                            const sg_image &gbuffer_position,
                            const sg_image &gbuffer_normal,
-                           const sg_image &gbuffer_albedo) {
+                           const sg_image &gbuffer_albedo,
+                           const sg_image &gbuffer_emissive) {
   int image_width = 0, image_height = 0, image_channels = 0;
 
   auto image_path = "assets/textures/ibl_brdf_lut.png";
@@ -71,6 +72,7 @@ LightingPass::LightingPass(uint32_t width, uint32_t height,
   bindings.fs_images[SLOT_g_world_pos] = gbuffer_position;
   bindings.fs_images[SLOT_g_normal] = gbuffer_normal;
   bindings.fs_images[SLOT_g_albedo] = gbuffer_albedo;
+  bindings.fs_images[SLOT_g_emissive] = gbuffer_emissive;
   bindings.fs_images[SLOT_brdf_lut] = brdf_lut_tex;
   bindings.vertex_buffers[0] = Quad::GetInstance();
 }

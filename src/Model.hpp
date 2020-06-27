@@ -14,6 +14,7 @@ struct Mesh {
   sg_image albedo;
   sg_image normal;
   sg_image metallic_roughness;
+  sg_image emissive;
 
   sg_pipeline pipeline{};
   sg_pipeline shadow_pass_pipeline{};

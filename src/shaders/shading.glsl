@@ -28,6 +28,7 @@ uniform shading_fs_params {
 uniform sampler2D g_world_pos;
 uniform sampler2D g_normal;
 uniform sampler2D g_albedo;
+uniform sampler2D g_emissive;
 uniform sampler2D shadow_map;
 uniform sampler2D ao_map;
 uniform samplerCube irradiance_map;
@@ -114,6 +115,7 @@ void main() {
   vec4 world_pos = texture(g_world_pos, v_uv);
   vec3 normal = texture(g_normal, v_uv).xyz;
   vec4 albedo = texture(g_albedo, v_uv);
+  vec3 emissive = texture(g_emissive, v_uv).rgb;
   float ao = texture(ao_map, v_uv).r;
   vec3 diffuse = albedo.rgb;
   float roughness = albedo.a;
@@ -123,7 +125,7 @@ void main() {
   vec3 F0 = vec3(0.04);
   F0 = mix(F0, albedo.rgb, metallic);
 
-  color.rgb = vec3(0.0);
+  color.rgb = emissive;
 
   vec3 view_dir = normalize(view_pos - world_pos.xyz);
   vec3 light_dir = normalize(-light_direction);

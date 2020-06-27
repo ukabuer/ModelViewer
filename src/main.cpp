@@ -73,8 +73,9 @@ int main() {
   auto gbuffer_pass = GBufferPass(width, height);
   auto ssao_pass =
       SSAOPass(width, height, gbuffer_pass.position, gbuffer_pass.normal);
-  auto lighting_pass = LightingPass(width, height, gbuffer_pass.position,
-                                    gbuffer_pass.normal, gbuffer_pass.albedo);
+  auto lighting_pass =
+      LightingPass(width, height, gbuffer_pass.position, gbuffer_pass.normal,
+                   gbuffer_pass.albedo, gbuffer_pass.emissive);
   auto skybox_pass = SkyboxPass(lighting_pass.result, gbuffer_pass.depth);
   auto postprocess_pass = PostProccesPass(lighting_pass.result);
   auto ssao_blur_pass = BlurPass(ssao_pass.ao_map);

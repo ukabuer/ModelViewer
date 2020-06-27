@@ -143,6 +143,16 @@ auto Model::Load(const char *filename) -> Model {
       fake_metallic_roughness_data.size();
   auto fake_metallic_roughness = sg_make_image(fake_metallic_roughness_desc);
 
+  static array<uint8_t, 16> fake_emissive_data = {0, 0, 0, 0, 0, 0, 0, 0,
+                                                  0, 0, 0, 0, 0, 0, 0, 0};
+  sg_image_desc fake_emissive_desc{};
+  fake_emissive_desc.width = 2;
+  fake_emissive_desc.height = 2;
+  fake_emissive_desc.pixel_format = SG_PIXELFORMAT_RGBA8;
+  fake_emissive_desc.content.subimage[0][0].ptr = fake_emissive_data.data();
+  fake_emissive_desc.content.subimage[0][0].size = fake_emissive_data.size();
+  auto fake_emissive = sg_make_image(fake_emissive_desc);
+
   Model model{};
 
   // setup buffers
@@ -260,7 +270,7 @@ auto Model::Load(const char *filename) -> Model {
       pipeline_desc.rasterizer.face_winding = SG_FACEWINDING_CCW;
       pipeline_desc.depth_stencil.depth_compare_func = SG_COMPAREFUNC_LESS;
       pipeline_desc.depth_stencil.depth_write_enabled = true;
-      pipeline_desc.blend.color_attachment_count = 3;
+      pipeline_desc.blend.color_attachment_count = 4;
       pipeline_desc.blend.color_format = SG_PIXELFORMAT_RGBA32F;
       pipeline_desc.blend.depth_format = SG_PIXELFORMAT_DEPTH;
       mesh.pipeline = sg_make_pipeline(pipeline_desc);
@@ -292,6 +302,12 @@ auto Model::Load(const char *filename) -> Model {
         mesh.normal = fake_normal_map;
       } else {
         mesh.normal = model.textures[gltf_material.normalTexture.index];
+      }
+
+      if (gltf_material.emissiveTexture.index == -1) {
+        mesh.emissive = fake_emissive;
+      } else {
+        mesh.emissive = model.textures[gltf_material.emissiveTexture.index];
       }
 
       string id = to_string(i) + "-" + to_string(j);

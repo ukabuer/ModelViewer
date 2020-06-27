@@ -13,7 +13,8 @@ struct LightingPass {
 
   LightingPass(uint32_t width, uint32_t height,
                const sg_image &gbuffer_position, const sg_image &gbuffer_normal,
-               const sg_image &gbuffer_albedo);
+               const sg_image &gbuffer_albedo,
+               const sg_image &gbuffer_emissive);
   void run(const Eigen::Vector3f &view_pos, const Light &light);
   void set_irradiance_map(const sg_image &irradiance_map);
   void set_prefilter_map(const sg_image &prefilter_map);

@@ -13,6 +13,7 @@ struct GBufferPass {
   sg_image normal{};
   sg_image albedo{};
   sg_image depth{};
+  sg_image emissive{};
 
   GBufferPass(uint32_t width, uint32_t height);
   void run(const Model &model, const Eigen::Matrix4f &camera_matrix);

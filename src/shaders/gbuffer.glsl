@@ -32,10 +32,12 @@ in vec3 v_world_pos;
 out vec4 g_world_pos;
 out vec3 g_normal;
 out vec4 g_albedo;
+out vec4 g_emissive;
 
 uniform sampler2D albedo;
 uniform sampler2D normal_map;
 uniform sampler2D metallic_roughness_map;
+uniform sampler2D emissive_map;
 
 vec3 srgb_to_linear(vec3 srgb_color) {
   const float gamma = 2.2f;
@@ -60,6 +62,9 @@ void main() {
   g_albedo.rgb = srgb_to_linear(texture(albedo, v_uv).rgb);
   g_albedo.a = metallic_roughness.g;// roughness
   g_world_pos.w = metallic_roughness.b;// metallic
+
+  vec3 emissive = srgb_to_linear(texture(emissive_map, v_uv).rgb);
+  g_emissive.rgb = emissive;
 }
   #pragma sokol @end
 
