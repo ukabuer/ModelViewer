@@ -213,19 +213,18 @@ static sg_image prefilter_environment_map(const sg_image &environment_map) {
   sg_pass_desc pass_desc{};
   const auto &projection_matrix = camera.getCullingProjectionMatrix();
   pass_desc.color_attachments[0].image = prefilter_map;
-  for (int mip = 0; mip < prefilter_map_desc.num_mipmaps; mip++) {
-    pass_desc.color_attachments[0].mip_level = mip;
-    fs_params.roughness =
-        static_cast<float>(mip) /
-        static_cast<float>(prefilter_map_desc.num_mipmaps - 1);
-    for (int i = 0; i < 6; i++) {
-      pass_desc.color_attachments[0].face = SG_CUBEFACE_POS_X + i;
+  for (int face = 0; face < 6; face++) {
+    pass_desc.color_attachments[0].face = SG_CUBEFACE_POS_X + face;
+    camera.lookAt(Vector3f::Zero(), targets[face], ups[face]);
+    auto view_matrix = camera.getViewMatrix().inverse();
+    vs_params.camera = projection_matrix * view_matrix;
+    for (int mip = 0; mip < prefilter_map_desc.num_mipmaps; mip++) {
+      fs_params.roughness =
+          static_cast<float>(mip) /
+          static_cast<float>(prefilter_map_desc.num_mipmaps - 1);
+
+      pass_desc.color_attachments[0].mip_level = mip;
       auto pass = sg_make_pass(pass_desc);
-
-      camera.lookAt(Vector3f::Zero(), targets[i], ups[i]);
-      auto view_matrix = camera.getViewMatrix().inverse();
-
-      vs_params.camera = projection_matrix * view_matrix;
       sg_begin_pass(pass, pass_action);
       sg_apply_pipeline(pipeline);
       sg_apply_bindings(bindings);
@@ -253,7 +252,7 @@ SkyboxPass::SkyboxPass(const sg_image &color, const sg_image &depth) {
 
   bindings.vertex_buffers[0] = cube.buffer;
   bindings.index_buffer = cube.index_buffer;
-  bindings.fs_images[SLOT_skybox_cube] = prefilter_map;
+  bindings.fs_images[SLOT_skybox_cube] = environment;
 
   sg_pipeline_desc pipeline_desc{};
   pipeline_desc.shader = sg_make_shader(skybox_shader_desc());

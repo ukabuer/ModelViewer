@@ -34,7 +34,7 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   auto window =
-      glfwCreateWindow(width, height, "GLTF Viewer", nullptr, nullptr);
+      glfwCreateWindow(width, height, "GLTF Model Viewer", nullptr, nullptr);
   glfwMakeContextCurrent(window);
   glfwSwapInterval(1);
 
@@ -80,6 +80,7 @@ int main() {
   auto ssao_blur_pass = BlurPass(ssao_pass.ao_map);
 
   lighting_pass.set_irradiance_map(skybox_pass.irradiance_map);
+  lighting_pass.set_prefilter_map(skybox_pass.prefilter_map);
 
   Light light{};
   light.direction = {0.0f, -1.0f, 0.0f};

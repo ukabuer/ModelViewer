@@ -31,6 +31,8 @@ uniform sampler2D g_albedo;
 uniform sampler2D shadow_map;
 uniform sampler2D ao_map;
 uniform samplerCube irradiance_map;
+uniform samplerCube prefilter_map;
+uniform sampler2D brdf_lut;
 
 const float PI = 3.14159265359;
 
@@ -91,13 +93,19 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
 }
 
 vec3 indirect_lighting(vec3 normal, vec3 view_dir, vec3 F0, float roughness, vec3 albedo) {
+  vec3 reflected = reflect(-view_dir, normal);
+  const float MAX_REFLECTION_LOD = 4.0;
+  vec3 prefiltered_color = textureLod(prefilter_map, reflected, roughness * MAX_REFLECTION_LOD).rgb;
   vec3 F = fresnel_schlick_roughness(max(dot(normal, view_dir), 0.0), F0, roughness);
+  vec2 env_brdf  = texture(brdf_lut, vec2(max(dot(normal, view_dir), 0.0), roughness)).rg;
+  vec3 specular = prefiltered_color * (F * env_brdf.x + env_brdf.y);
+
   vec3 kS = F;
   vec3 kD = 1.0 - kS;
 
   vec3 irradiance = texture(irradiance_map, normal).rgb;
   vec3 diffuse = irradiance * albedo;
-  vec3 ambient = kD * diffuse;
+  vec3 ambient = kD * diffuse + specular;
 
   return ambient;
 }

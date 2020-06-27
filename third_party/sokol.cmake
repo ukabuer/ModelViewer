@@ -5,7 +5,7 @@ include(FetchContent)
 FetchContent_Declare(
     sokol
     GIT_REPOSITORY https://github.com/floooh/sokol.git
-    GIT_TAG eb3fe183a5fded0ffce1c09bd3641cd11fdaba14
+    GIT_TAG 1f9fd41e6dc3eedc6dff6a67218a1cd5b42011b3
     GIT_SHALLOW true
     GIT_PROGRESS TRUE
 )

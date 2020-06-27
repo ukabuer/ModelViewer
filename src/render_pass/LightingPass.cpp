@@ -3,6 +3,7 @@
 #include "Geometry.hpp"
 #include "shaders/shading.glsl.h"
 #include <render_pass/ShadowPass.hpp>
+#include <tinygltf/stb_image.h>
 
 using namespace std;
 
@@ -10,6 +11,22 @@ LightingPass::LightingPass(uint32_t width, uint32_t height,
                            const sg_image &gbuffer_position,
                            const sg_image &gbuffer_normal,
                            const sg_image &gbuffer_albedo) {
+  int image_width = 0, image_height = 0, image_channels = 0;
+
+  auto image_path = "assets/textures/ibl_brdf_lut.png";
+  auto brdf_lut_data =
+      stbi_load(image_path, &image_width, &image_height, &image_channels, 4);
+  if (brdf_lut_data == nullptr) {
+    throw new runtime_error("Failed to load image: " + string(image_path));
+  }
+  sg_image_desc brdf_lut_desc{};
+  brdf_lut_desc.pixel_format = SG_PIXELFORMAT_RGBA8;
+  brdf_lut_desc.width = image_width;
+  brdf_lut_desc.height = image_height;
+  brdf_lut_desc.content.subimage[0][0].ptr = brdf_lut_data;
+  brdf_lut_desc.content.subimage[0][0].size = image_width * image_height * 4;
+  auto brdf_lut_tex = sg_make_image(brdf_lut_desc);
+
   array<float, 4> fake_ao_values = {1.0f, 1.0f, 1.0f, 1.0f};
   sg_image_desc fake_ao_image_desc{};
   fake_ao_image_desc.width = 2;
@@ -54,11 +71,16 @@ LightingPass::LightingPass(uint32_t width, uint32_t height,
   bindings.fs_images[SLOT_g_world_pos] = gbuffer_position;
   bindings.fs_images[SLOT_g_normal] = gbuffer_normal;
   bindings.fs_images[SLOT_g_albedo] = gbuffer_albedo;
+  bindings.fs_images[SLOT_brdf_lut] = brdf_lut_tex;
   bindings.vertex_buffers[0] = Quad::GetInstance();
 }
 
 void LightingPass::set_irradiance_map(const sg_image &irradiance_map) {
   bindings.fs_images[SLOT_irradiance_map] = irradiance_map;
+}
+
+void LightingPass::set_prefilter_map(const sg_image &prefilter_map) {
+  bindings.fs_images[SLOT_prefilter_map] = prefilter_map;
 }
 
 void LightingPass::run(const Eigen::Vector3f &view_pos, const Light &light) {
