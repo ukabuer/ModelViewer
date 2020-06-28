@@ -16,6 +16,7 @@ in vec2 v_uv;
 out vec4 FragColor;
 
 uniform sampler2D rendered;
+uniform sampler2D bright_color;
 
 // ACES tone map
 // see: https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
@@ -34,7 +35,8 @@ vec3 linear_to_srgb(vec3 linear_color) {
 }
 
 void main() {
-  vec3 color = texture(rendered, v_uv).rgb;
+  vec3 bloom = texture(bright_color, v_uv).rgb;
+  vec3 color = texture(rendered, v_uv).rgb + bloom;
   color = tone_map_ACES(color);
   color = linear_to_srgb(color);
 

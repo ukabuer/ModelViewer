@@ -9,6 +9,7 @@ struct LightingPass {
   sg_pipeline pipeline{};
   sg_bindings bindings{};
   sg_image result{};
+  sg_image bright_color{};
   sg_image fake_ao_map{};
 
   LightingPass(uint32_t width, uint32_t height,

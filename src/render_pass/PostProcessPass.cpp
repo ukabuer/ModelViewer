@@ -1,11 +1,13 @@
 #define SOKOL_GLCORE33
 #include "PostProcessPass.hpp"
+#include "render_pass/utils.hpp"
 #include "shaders/postprocess.glsl.h"
 #include <vector>
 
 using namespace std;
 
-PostProccesPass::PostProccesPass(const sg_image &rendered) {
+PostProccesPass::PostProccesPass(const sg_image &rendered,
+                                 const sg_image &bright_color) {
   pass_action.colors[0].action = SG_ACTION_CLEAR;
 
   sg_pipeline_desc postprocess_pipeline_desc{};
@@ -36,9 +38,10 @@ PostProccesPass::PostProccesPass(const sg_image &rendered) {
 
   bindings.vertex_buffers[0] = screen_quad_buffer;
   bindings.fs_images[SLOT_rendered] = rendered;
+  bindings.fs_images[SLOT_bright_color] = bright_color;
 }
 
-void PostProccesPass::run(uint32_t width, uint32_t height) const {
+void PostProccesPass::run(uint32_t width, uint32_t height) {
   sg_begin_default_pass(pass_action, width, height);
   sg_apply_pipeline(pipeline);
   sg_apply_bindings(bindings);

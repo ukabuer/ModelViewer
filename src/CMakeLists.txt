@@ -17,11 +17,12 @@ add_executable(ModelViewer
     render_pass/LightingPass.cpp
     render_pass/GBufferPass.cpp
     render_pass/SSAOPass.cpp
+    render_pass/BlurPass.cpp
+    render_pass/utils.cpp
     Camera.cpp
     Light.cpp
     TrackballController.cpp
     utils.cpp
-    render_pass/BlurPass.cpp
     Geometry.cpp)
 target_link_libraries(
     ModelViewer

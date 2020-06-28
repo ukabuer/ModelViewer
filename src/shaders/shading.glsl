@@ -18,6 +18,7 @@ void main() {
 in vec2 v_uv;
 
 out vec4 color;
+out vec4 bright_color;
 
 uniform shading_fs_params {
   vec3 view_pos;
@@ -160,6 +161,13 @@ void main() {
   Lo += (kD * albedo.rgb / PI + specular) * radiance * NdotL;
 
   color.rgb += Lo;
+
+  float brightness = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
+  if (brightness > 1.0) {
+    bright_color = vec4(color.rgb, 1.0);
+  } else {
+    bright_color = vec4(0.0, 0.0, 0.0, 1.0);
+  }
 }
   #pragma sokol @end
 

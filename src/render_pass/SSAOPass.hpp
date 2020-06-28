@@ -8,6 +8,11 @@ struct SSAOPass {
   sg_pass_action pass_action{};
   sg_pipeline pipeline{};
   sg_bindings bindings{};
+  sg_image origin_ao_map{};
+
+  sg_pass blur_pass{};
+  sg_pipeline blur_pipeline{};
+  sg_bindings blur_bindings{};
   sg_image ao_map{};
 
   float screen_width = 0.0f;

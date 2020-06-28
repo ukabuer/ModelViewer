@@ -77,8 +77,9 @@ int main() {
       LightingPass(width, height, gbuffer_pass.position, gbuffer_pass.normal,
                    gbuffer_pass.albedo, gbuffer_pass.emissive);
   auto skybox_pass = SkyboxPass(lighting_pass.result, gbuffer_pass.depth);
-  auto postprocess_pass = PostProccesPass(lighting_pass.result);
-  auto ssao_blur_pass = BlurPass(ssao_pass.ao_map);
+  auto postprocess_pass =
+      PostProccesPass(lighting_pass.result, lighting_pass.bright_color);
+  auto blur_pass = BlurPass(lighting_pass.bright_color);
 
   lighting_pass.set_irradiance_map(skybox_pass.irradiance_map);
   lighting_pass.set_prefilter_map(skybox_pass.prefilter_map);
@@ -87,6 +88,7 @@ int main() {
   light.direction = {0.0f, -1.0f, 0.0f};
   bool show_demo_window = false;
   bool use_ssao = true;
+  bool use_bloom = false;
   while (!glfwWindowShouldClose(window)) {
     if (!ImGui::GetIO().WantCaptureMouse) {
       controller.update();
@@ -103,6 +105,7 @@ int main() {
     ImGui::SliderFloat("y", &(light.direction.data()[1]), -3.0f, 3.0f);
     ImGui::SliderFloat("z", &(light.direction.data()[2]), -3.0f, 3.0f);
     ImGui::Checkbox("Use SSAO", &use_ssao);
+    ImGui::Checkbox("Use Bloom", &use_bloom);
     if (ImGui::Button("Select model...")) {
       auto result = pfd::open_file(
           "Choose models to read", "",
@@ -134,12 +137,14 @@ int main() {
     if (use_ssao) {
       ssao_pass.run(view_matrix, projection_matrix);
       lighting_pass.enable_ssao(ssao_pass.ao_map);
-      ssao_blur_pass.run();
     } else {
       lighting_pass.disable_ssao();
     }
     lighting_pass.run(controller.position, light);
     skybox_pass.run(camera_matrix);
+    if (use_bloom) {
+      blur_pass.run(2);
+    }
     postprocess_pass.run(width, height);
     sg_commit();
 

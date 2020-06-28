@@ -46,13 +46,16 @@ LightingPass::LightingPass(uint32_t width, uint32_t height,
   result_image_desc.wrap_u = SG_WRAP_CLAMP_TO_EDGE;
   result_image_desc.wrap_v = SG_WRAP_CLAMP_TO_EDGE;
   result_image_desc.pixel_format = SG_PIXELFORMAT_RGBA32F;
+  result = sg_make_image(result_image_desc);
+  bright_color = sg_make_image(result_image_desc);
 
   sg_pass_desc shading_pass_desc{};
-  result = sg_make_image(result_image_desc);
   shading_pass_desc.color_attachments[0].image = result;
+  shading_pass_desc.color_attachments[1].image = bright_color;
   pass = sg_make_pass(shading_pass_desc);
 
   pass_action.colors[0].action = SG_ACTION_CLEAR;
+  pass_action.colors[1].action = SG_ACTION_CLEAR;
 
   sg_pipeline_desc shading_pipeline_desc{};
   shading_pipeline_desc.shader = sg_make_shader(shading_shader_desc());
@@ -65,7 +68,7 @@ LightingPass::LightingPass(uint32_t width, uint32_t height,
   shading_pipeline_desc.layout.buffers[0].stride = 4 * sizeof(float);
   shading_pipeline_desc.primitive_type = SG_PRIMITIVETYPE_TRIANGLE_STRIP;
   shading_pipeline_desc.blend.depth_format = SG_PIXELFORMAT_NONE;
-  shading_pipeline_desc.blend.color_attachment_count = 1;
+  shading_pipeline_desc.blend.color_attachment_count = 2;
   shading_pipeline_desc.blend.color_format = result_image_desc.pixel_format;
   pipeline = sg_make_pipeline(shading_pipeline_desc);
 
