@@ -8,3 +8,4 @@ Features:
 - SSAO
 - PBR Lighting
 - Image-based Lighting
+- Bloom
