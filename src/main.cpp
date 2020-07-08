@@ -1,5 +1,5 @@
-#define GLFW_INCLUDE_NONE
 #include "Camera.hpp"
+#include "ImGUIApplication.hpp"
 #include "Model.hpp"
 #include "TrackballController.hpp"
 #include "render_pass/BlurPass.hpp"
@@ -9,94 +9,80 @@
 #include "render_pass/SSAOPass.hpp"
 #include "render_pass/ShadowPass.hpp"
 #include "render_pass/SkyboxPass.hpp"
-#include <GLFW/glfw3.h>
-#include <glad/glad.h>
 #include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
-#include <iostream>
 #include <portable-file-dialogs.h>
 #define SOKOL_GLCORE33
 #define SOKOL_IMPL
+#include <glad/glad.h>
 #include <sokol_gfx.h>
 
 using namespace std;
 
-void setup_event_callback(GLFWwindow *window, TrackballController &controller);
+class ModelViewer : public ImGUIApplication {
+public:
+  explicit ModelViewer(const Desc &desc) : ImGUIApplication(desc) {}
 
-int main() {
-  constexpr int32_t width = 1280;
-  constexpr int32_t height = 720;
+  void init() {
+    auto &desc = get_desc();
+    auto width = desc.width;
+    auto height = desc.height;
 
-  glfwInit();
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  auto window =
-      glfwCreateWindow(width, height, "GLTF Model Viewer", nullptr, nullptr);
-  glfwMakeContextCurrent(window);
-  glfwSwapInterval(1);
+    light.direction = {0.0f, -1.0f, 0.0f};
 
-  auto loader = reinterpret_cast<GLADloadproc>(&glfwGetProcAddress);
-  if (!gladLoadGLLoader(loader)) {
-    cerr << "Failed to load OpenGL." << endl;
-    return -1;
+    camera.setProjection(45.0f,
+                         static_cast<float>(width) / static_cast<float>(height),
+                         0.1f, 100.0f);
+    controller.position[2] += 5.0f;
+
+    gbuffer_pass = make_unique<GBufferPass>(width, height);
+    ssao_pass = make_unique<SSAOPass>(width, height, gbuffer_pass->position,
+                                      gbuffer_pass->normal);
+    lighting_pass = make_unique<LightingPass>(
+        width, height, gbuffer_pass->position, gbuffer_pass->normal,
+        gbuffer_pass->albedo, gbuffer_pass->emissive);
+    skybox_pass =
+        make_unique<SkyboxPass>(lighting_pass->result, gbuffer_pass->depth);
+    postprocess_pass = make_unique<PostProccesPass>(
+        lighting_pass->result, lighting_pass->bright_color);
+    blur_pass = make_unique<BlurPass>(lighting_pass->bright_color);
+
+    lighting_pass->set_irradiance_map(skybox_pass->irradiance_map);
+    lighting_pass->set_prefilter_map(skybox_pass->prefilter_map);
+
+    on(InputEvent::MouseDown, [&controller = this->controller]() {
+      auto &mouse_down = Application::Input::mouse_down;
+      auto &cursor_position = Application::Input::cursor_position;
+      controller.onMouseDown(mouse_down[0],
+                             static_cast<int>(cursor_position[0]),
+                             static_cast<int>(cursor_position[1]));
+    });
+    on(InputEvent::MouseUp, [&controller = this->controller]() {
+      auto &mouse_down = Application::Input::mouse_down;
+      auto &cursor_position = Application::Input::cursor_position;
+      controller.onMouseUp(mouse_down[0], static_cast<int>(cursor_position[0]),
+                           static_cast<int>(cursor_position[1]));
+    });
+    on(InputEvent::MouseMove, [&controller = this->controller]() {
+      auto &cursor_position = Application::Input::cursor_position;
+      controller.onMouseMove(static_cast<int>(cursor_position[0]),
+                             static_cast<int>(cursor_position[1]));
+    });
+    on(InputEvent::MouseWheel, [&controller = this->controller]() {
+      auto &scroll_offset = Application::Input::scroll_offset;
+      controller.onMouseWheelScroll(scroll_offset[1]);
+    });
   }
 
-  IMGUI_CHECKVERSION();
-  ImGui::CreateContext();
-  ImGuiIO &io = ImGui::GetIO();
-  (void)io;
-  ImGuiStyle style{};
-  style.WindowRounding = 0.0f;
-  ImGui::StyleColorsDark(&style);
-  ImGui_ImplGlfw_InitForOpenGL(window, true);
-  ImGui_ImplOpenGL3_Init("#version 150");
+  void update() override {
+    auto &desc = get_desc();
+    auto width = desc.width;
+    auto height = desc.height;
 
-  sg_desc app_desc{};
-  sg_setup(&app_desc);
-
-  // load scene
-  vector<Model> models;
-
-  // setup camera
-  Camera camera{};
-  camera.setProjection(45.0f,
-                       static_cast<float>(width) / static_cast<float>(height),
-                       0.1f, 100.0f);
-
-  TrackballController controller{800, 600};
-  controller.position[2] += 5.0f;
-  setup_event_callback(window, controller);
-
-  auto gbuffer_pass = GBufferPass(width, height);
-  auto ssao_pass =
-      SSAOPass(width, height, gbuffer_pass.position, gbuffer_pass.normal);
-  auto lighting_pass =
-      LightingPass(width, height, gbuffer_pass.position, gbuffer_pass.normal,
-                   gbuffer_pass.albedo, gbuffer_pass.emissive);
-  auto skybox_pass = SkyboxPass(lighting_pass.result, gbuffer_pass.depth);
-  auto postprocess_pass =
-      PostProccesPass(lighting_pass.result, lighting_pass.bright_color);
-  auto blur_pass = BlurPass(lighting_pass.bright_color);
-
-  lighting_pass.set_irradiance_map(skybox_pass.irradiance_map);
-  lighting_pass.set_prefilter_map(skybox_pass.prefilter_map);
-
-  Light light{};
-  light.direction = {0.0f, -1.0f, 0.0f};
-  bool show_demo_window = false;
-  bool use_ssao = true;
-  bool use_bloom = false;
-  while (!glfwWindowShouldClose(window)) {
     if (!ImGui::GetIO().WantCaptureMouse) {
       controller.update();
       camera.lookAt(controller.position, controller.target, controller.up);
     }
 
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
     ImGui::Begin("Parameters");
@@ -132,67 +118,50 @@ int main() {
 
     for (auto &model : models) {
       light.shadow_pass->run(model, light);
-      gbuffer_pass.run(model, camera_matrix);
+      gbuffer_pass->run(model, camera_matrix);
     }
     if (use_ssao) {
-      ssao_pass.run(view_matrix, projection_matrix);
-      lighting_pass.enable_ssao(ssao_pass.ao_map);
+      ssao_pass->run(view_matrix, projection_matrix);
+      lighting_pass->enable_ssao(ssao_pass->ao_map);
     } else {
-      lighting_pass.disable_ssao();
+      lighting_pass->disable_ssao();
     }
-    lighting_pass.run(controller.position, light);
-    skybox_pass.run(camera_matrix);
+    lighting_pass->run(controller.position, light);
+    skybox_pass->run(camera_matrix);
     if (use_bloom) {
-      blur_pass.run(2);
+      blur_pass->run(2);
     }
-    postprocess_pass.run(width, height);
+    postprocess_pass->run(width, height);
     sg_commit();
-
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    glfwSwapBuffers(window);
-    glfwPollEvents();
   }
 
-  sg_shutdown();
-  glfwTerminate();
-  return 0;
-}
+private:
+  unique_ptr<GBufferPass> gbuffer_pass;
+  unique_ptr<LightingPass> lighting_pass;
+  unique_ptr<SSAOPass> ssao_pass;
+  unique_ptr<SkyboxPass> skybox_pass;
+  unique_ptr<BlurPass> blur_pass;
+  unique_ptr<PostProccesPass> postprocess_pass;
 
-void setup_event_callback(GLFWwindow *window, TrackballController &controller) {
-  glfwSetWindowUserPointer(window, reinterpret_cast<void *>(&controller));
-  glfwSetKeyCallback(window, [](GLFWwindow *window, int key, int scan_code,
-                                int action, int mods) {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-      glfwSetWindowShouldClose(window, GLFW_TRUE);
-      return;
-    }
-  });
-  glfwSetCursorPosCallback(window, [](GLFWwindow *window, double x, double y) {
-    auto raw = glfwGetWindowUserPointer(window);
-    auto &control = *(reinterpret_cast<TrackballController *>(raw));
-    control.onMouseMove(static_cast<int>(x), static_cast<int>(y));
-  });
-  glfwSetScrollCallback(
-      window, [](GLFWwindow *window, double x_offset, double y_offset) {
-        if (y_offset == 0.0) {
-          return;
-        }
-        auto raw = glfwGetWindowUserPointer(window);
-        auto &control = *(reinterpret_cast<TrackballController *>(raw));
-        control.onMouseWheelScroll(static_cast<float>(y_offset));
-      });
-  glfwSetMouseButtonCallback(
-      window, [](GLFWwindow *window, int button, int action, int mods) {
-        double x, y;
-        glfwGetCursorPos(window, &x, &y);
-        auto raw = glfwGetWindowUserPointer(window);
-        auto &control = *(reinterpret_cast<TrackballController *>(raw));
-        if (action == GLFW_PRESS) {
-          control.onMouseDown(GLFW_MOUSE_BUTTON_LEFT == button,
-                              static_cast<int>(x), static_cast<int>(y));
-        } else if (action == GLFW_RELEASE) {
-          control.onMouseUp(GLFW_MOUSE_BUTTON_LEFT == button,
-                            static_cast<int>(x), static_cast<int>(y));
-        }
-      });
+  bool show_demo_window = false;
+  bool use_ssao = true;
+  bool use_bloom = false;
+
+  vector<Model> models;
+  Camera camera{};
+  TrackballController controller{800, 600};
+  Light light{};
+};
+
+int main() {
+  ModelViewer::Desc desc{};
+  desc.width = 1280;
+  desc.height = 720;
+  desc.title = "GLTF Model Viewer";
+
+  ModelViewer viewer{desc};
+  viewer.init();
+  viewer.run();
+
+  return 0;
 }

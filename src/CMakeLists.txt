@@ -10,6 +10,8 @@ process_shaders(${CMAKE_CURRENT_SOURCE_DIR}/shaders)
 
 add_executable(ModelViewer
     main.cpp
+    Application.cpp
+    ImGUIApplication.cpp
     Model.cpp
     render_pass/ShadowPass.cpp
     render_pass/PostProcessPass.cpp
