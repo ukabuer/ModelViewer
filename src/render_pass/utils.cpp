@@ -173,7 +173,7 @@ sg_image prefilter_environment_map(const sg_image &environment_map) {
   prefilter_map_desc.pixel_format = SG_PIXELFORMAT_RGBA32F;
   prefilter_map_desc.min_filter = SG_FILTER_LINEAR_MIPMAP_LINEAR;
   prefilter_map_desc.mag_filter = SG_FILTER_LINEAR;
-  prefilter_map_desc.num_mipmaps = 5;
+  prefilter_map_desc.num_mipmaps = 7;
   auto prefilter_map = sg_make_image(prefilter_map_desc);
 
   auto &cube = Cube::GetInstance();

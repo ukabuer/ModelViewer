@@ -18,7 +18,7 @@ LightingPass::LightingPass(uint32_t width, uint32_t height,
   auto brdf_lut_data =
       stbi_load(image_path, &image_width, &image_height, &image_channels, 4);
   if (brdf_lut_data == nullptr) {
-    throw new runtime_error("Failed to load image: " + string(image_path));
+    throw runtime_error("Failed to load image: " + string(image_path));
   }
   sg_image_desc brdf_lut_desc{};
   brdf_lut_desc.pixel_format = SG_PIXELFORMAT_RGBA8;
